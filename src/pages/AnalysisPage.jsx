@@ -3,7 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Download, Share2, MessageSquare, Sparkles, BookOpen, Lightbulb, Image as ImageIcon, BookMarked, ExternalLink, User, CheckCircle2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAppStore } from '../store/useAppStore';
+import { useMetricsStore } from '../store/useMetricsStore';
 import { generateCoreAnalysis, generateAdvancedAnalysis, extractReferences } from '../services/analysisService';
+import { evaluateAnalysisQuality } from '../services/evaluationService';
 import { extractPDFImages } from '../services/fileParser';
 import { exportAsPDF, exportAsMarkdown, exportAsPPTX } from '../services/exportService';
 import { Button } from '../components/ui/Button';
@@ -23,6 +25,7 @@ import ChatInterface from '../components/chat/ChatInterface';
 export default function AnalysisPage() {
   const navigate = useNavigate();
   const { uploadedFiles, currentAnalysis, setCurrentAnalysis, persona, setPersona, addToHistory } = useAppStore();
+  const { addEvaluation, incrementMetric } = useMetricsStore();
   const [activeTab, setActiveTab] = useState('takeaways');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [loadingStage, setLoadingStage] = useState('');
@@ -83,6 +86,17 @@ export default function AnalysisPage() {
         takeaways: coreAnalysis.keyFindings,
         overview: coreAnalysis
       }));
+
+      // Evaluate analysis quality for IEEE metrics
+      try {
+        setLoadingStage('Evaluating analysis quality...');
+        const evaluation = await evaluateAnalysisQuality(coreAnalysis, text);
+        addEvaluation(evaluation);
+        incrementMetric('analysesGenerated');
+        console.log('Quality Score:', evaluation.qualityScore, '- Rating:', evaluation.rating);
+      } catch (error) {
+        console.error('Evaluation error:', error);
+      }
 
       setIsAnalyzing(false);
       setLoadingStage('');
