@@ -1,0 +1,72 @@
+<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- Prism gradient -->
+    <linearGradient id="iconPrismGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#60a5fa;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#a78bfa;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#f472b6;stop-opacity:1" />
+    </linearGradient>
+    
+    <!-- Light beam gradients -->
+    <linearGradient id="iconBeam1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#60a5fa;stop-opacity:0.9" />
+      <stop offset="100%" style="stop-color:#60a5fa;stop-opacity:0.3" />
+    </linearGradient>
+    
+    <linearGradient id="iconBeam2" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#a78bfa;stop-opacity:0.9" />
+      <stop offset="100%" style="stop-color:#a78bfa;stop-opacity:0.3" />
+    </linearGradient>
+    
+    <linearGradient id="iconBeam3" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#f472b6;stop-opacity:0.9" />
+      <stop offset="100%" style="stop-color:#f472b6;stop-opacity:0.3" />
+    </linearGradient>
+    
+    <!-- Glow effect -->
+    <filter id="iconGlow">
+      <feGaussianBlur stdDeviation="1.5" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  
+  <!-- Main prism -->
+  <g filter="url(#iconGlow)">
+    <!-- Shadow -->
+    <path d="M 32 14 L 50 48 L 14 48 Z" fill="#000000" opacity="0.15" transform="translate(1, 1)"/>
+    
+    <!-- Prism body -->
+    <path d="M 32 14 L 50 48 L 14 48 Z" fill="url(#iconPrismGradient)" stroke="#ffffff" stroke-width="2.5" stroke-linejoin="round"/>
+    
+    <!-- Highlight -->
+    <path d="M 32 14 L 36 48 L 28 48 Z" fill="#ffffff" opacity="0.3"/>
+  </g>
+  
+  <!-- Input beam -->
+  <line x1="32" y1="4" x2="32" y2="14" stroke="#ffffff" stroke-width="3" stroke-linecap="round" opacity="0.85"/>
+  <circle cx="32" cy="4" r="2" fill="#ffffff" opacity="0.85"/>
+  
+  <!-- Refracted beams -->
+  <g opacity="0.9">
+    <path d="M 48 48 L 56 58" stroke="url(#iconBeam1)" stroke-width="3.5" stroke-linecap="round"/>
+    <path d="M 44 48 L 52 60" stroke="url(#iconBeam2)" stroke-width="3.5" stroke-linecap="round"/>
+    <path d="M 40 48 L 46 62" stroke="url(#iconBeam3)" stroke-width="3.5" stroke-linecap="round"/>
+  </g>
+  
+  <!-- AI neural network inside -->
+  <g transform="translate(32, 31)" opacity="0.95">
+    <circle cx="-4" cy="-2" r="2" fill="#ffffff"/>
+    <circle cx="4" cy="-2" r="2" fill="#ffffff"/>
+    <circle cx="0" cy="4" r="2" fill="#ffffff"/>
+    <circle cx="-3" cy="10" r="1.5" fill="#ffffff"/>
+    <circle cx="3" cy="10" r="1.5" fill="#ffffff"/>
+    
+    <line x1="-4" y1="-2" x2="0" y2="4" stroke="#ffffff" stroke-width="1" opacity="0.7"/>
+    <line x1="4" y1="-2" x2="0" y2="4" stroke="#ffffff" stroke-width="1" opacity="0.7"/>
+    <line x1="0" y1="4" x2="-3" y2="10" stroke="#ffffff" stroke-width="1" opacity="0.7"/>
+    <line x1="0" y1="4" x2="3" y2="10" stroke="#ffffff" stroke-width="1" opacity="0.7"/>
+  </g>
+</svg>
