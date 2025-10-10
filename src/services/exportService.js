@@ -187,7 +187,7 @@ export function exportAsPPTX(presentation, paperTitle) {
 
   // Set presentation properties
   pptx.author = 'Prism AI';
-  pptx.title = paperTitle;
+  pptx.title = paperTitle || 'Research Analysis';
   pptx.subject = 'Research Paper Analysis';
 
   // Define theme colors
@@ -281,7 +281,8 @@ export function exportAsPPTX(presentation, paperTitle) {
   });
 
   // Save presentation
-  pptx.writeFile({ fileName: `${paperTitle.substring(0, 50)}_presentation.pptx` });
+  const fileName = paperTitle ? `${paperTitle.substring(0, 50)}_presentation.pptx` : 'research_presentation.pptx';
+  pptx.writeFile({ fileName });
 }
 
 /**

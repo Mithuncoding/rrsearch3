@@ -250,7 +250,42 @@ export default function AnalysisPage() {
       } else if (format === 'markdown') {
         exportAsMarkdown(currentAnalysis);
       } else if (format === 'pptx') {
-        exportAsPPTX({ slides: [] }, currentAnalysis.title);
+        // Generate presentation slides from analysis
+        const presentation = {
+          slides: [
+            {
+              title: currentAnalysis.title || 'Research Analysis',
+              content: []
+            },
+            {
+              title: 'Key Takeaways',
+              content: currentAnalysis.takeaways || []
+            },
+            {
+              title: 'Summary',
+              content: [currentAnalysis.summary || 'No summary available']
+            },
+            {
+              title: 'Problem Statement',
+              content: [currentAnalysis.problemStatement || 'Not available']
+            },
+            {
+              title: 'Methodology',
+              content: [currentAnalysis.methodology || 'Not available']
+            }
+          ]
+        };
+        
+        if (currentAnalysis.keyFindings && currentAnalysis.keyFindings.length > 0) {
+          presentation.slides.push({
+            title: 'Key Findings',
+            content: currentAnalysis.keyFindings.map(f => 
+              typeof f === 'string' ? f : f.finding || 'Finding'
+            )
+          });
+        }
+        
+        exportAsPPTX(presentation, currentAnalysis.title || 'Research Analysis');
       }
       toast.success(`Exported as ${format.toUpperCase()}`);
       setShowExportMenu(false);

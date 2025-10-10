@@ -278,7 +278,7 @@ export async function generateStructuredContent(prompt, schema, useAdvancedModel
 
 // Stream content for chat
 export async function streamChatResponse(messages, onChunk) {
-  const apiUrl = FLASH_API_URL.replace('generateContent', 'streamGenerateContent');
+  const apiUrl = FAST_API_URL.replace('generateContent', 'streamGenerateContent');
   
   try {
     const response = await fetch(apiUrl, {
