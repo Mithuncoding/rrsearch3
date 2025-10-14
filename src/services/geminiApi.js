@@ -1,10 +1,36 @@
-// AI API Configuration
-const AI_API_KEY = 'AIzaSyDNK5X9mr8AB0wjy9D2gtvpCdQ0FUecj5Y';
+// AI API Configuration with rotation
+const API_KEYS = [
+  'AIzaSyDNK5X9mr8AB0wjy9D2gtvpCdQ0FUecj5Y',
+  'AIzaSyDsE6eI6fDUo756_ADuRAm1wkUiWSGTupI',
+  'AIzaSyDPCJ-ZQIFn88zsyDeIsR7nQGearUEY3z8',
+  'AIzaSyBY4PXJnUOSSBxB0wJIYCYDcKJ9AhQsQrU',
+  'AIzaSyBHFWFQDA0kkxobLvoqwV_fc7xHbuRvI00',
+  'AIzaSyAGoeza5zsrOIdvp7aZ-7_FlpnUVYUpcwU'
+];
+
+let currentKeyIndex = 0;
+
+// Mask API key for logging
+const maskKey = (key) => `${key.substring(0, 8)}...${key.substring(key.length - 4)}`;
+
+// Get current API key with rotation
+const getApiKey = () => {
+  const key = API_KEYS[currentKeyIndex];
+  const nextIndex = (currentKeyIndex + 1) % API_KEYS.length;
+  console.log(`🔑 Using API key ${currentKeyIndex + 1}/${API_KEYS.length}: ${maskKey(key)}`);
+  currentKeyIndex = nextIndex; // Rotate
+  return key;
+};
+
 const AI_FAST_MODEL = 'gemini-2.5-flash';
 const AI_ADVANCED_MODEL = 'gemini-2.5-pro';
+const AI_FALLBACK_MODEL = 'gemini-1.5-flash'; // Fallback model
 
-const FAST_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/${AI_FAST_MODEL}:generateContent?key=${AI_API_KEY}`;
-const ADVANCED_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/${AI_ADVANCED_MODEL}:generateContent?key=${AI_API_KEY}`;
+const buildApiUrl = (model, apiKey) => 
+  `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+
+const FAST_API_URL = buildApiUrl(AI_FAST_MODEL, getApiKey());
+const ADVANCED_API_URL = buildApiUrl(AI_ADVANCED_MODEL, getApiKey());
 
 // Schema definitions for structured output
 export const SCHEMAS = {
@@ -201,13 +227,16 @@ function truncateText(text, maxTokens = 30000) {
 
 // Generate content with structured output and retry logic
 export async function generateStructuredContent(prompt, schema, useAdvancedModel = false, retries = 3) {
-  const apiUrl = useAdvancedModel ? ADVANCED_API_URL : FAST_API_URL;
-  
   // Truncate prompt if too long
   const truncatedPrompt = truncateText(prompt);
   
   for (let attempt = 0; attempt < retries; attempt++) {
     try {
+      // Get fresh API key and URL for each attempt
+      const model = useAdvancedModel ? AI_ADVANCED_MODEL : AI_FAST_MODEL;
+      const apiKey = getApiKey();
+      const apiUrl = buildApiUrl(model, apiKey);
+      
       const response = await fetch(apiUrl, {
         method: 'POST',
         headers: {
@@ -233,18 +262,25 @@ export async function generateStructuredContent(prompt, schema, useAdvancedModel
       if (!response.ok) {
         const errorData = await response.json();
         const errorMessage = errorData.error?.message || response.statusText;
+        const errorCode = errorData.error?.code;
         
-        // Check if it's a retryable error
+        // Check if it's a retryable error (quota/overload)
         if ((response.status === 503 || response.status === 429) && attempt < retries - 1) {
+          // On quota error, try next API key immediately
+          if (errorCode === 429) {
+            console.warn(`⚠️ Quota exceeded, rotating to next API key... (attempt ${attempt + 1}/${retries})`);
+            continue; // Try immediately with next key
+          }
+          
           // If Advanced model is overloaded, try Fast model as fallback
           if (useAdvancedModel && attempt === 0) {
-            console.warn('Pro model overloaded, trying Flash model as fallback...');
+            console.warn('⚠️ Pro model overloaded, trying Flash model as fallback...');
             return generateStructuredContent(prompt, schema, false, 1);
           }
           
-          // Exponential backoff: wait 2^attempt seconds
+          // For other errors, exponential backoff
           const waitTime = Math.pow(2, attempt) * 1000;
-          console.warn(`API overloaded, retrying in ${waitTime/1000}s... (attempt ${attempt + 1}/${retries})`);
+          console.warn(`⚠️ API error, retrying in ${waitTime/1000}s... (attempt ${attempt + 1}/${retries})`);
           await new Promise(resolve => setTimeout(resolve, waitTime));
           continue;
         }
@@ -276,70 +312,93 @@ export async function generateStructuredContent(prompt, schema, useAdvancedModel
   }
 }
 
-// Stream content for chat
-export async function streamChatResponse(messages, onChunk) {
-  const apiUrl = FAST_API_URL.replace('generateContent', 'streamGenerateContent');
-  
-  try {
-    const response = await fetch(apiUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        contents: messages.map(msg => ({
-          role: msg.role === 'user' ? 'user' : 'model',
-          parts: [{
-            text: msg.content
-          }]
-        })),
-        generationConfig: {
-          temperature: 0.8,
-          topK: 40,
-          topP: 0.95,
-          maxOutputTokens: 2048,
+// Stream content for chat with retry and rotation
+export async function streamChatResponse(messages, onChunk, retries = 3) {
+  for (let attempt = 0; attempt < retries; attempt++) {
+    try {
+      // Get fresh API key for each attempt
+      const apiKey = getApiKey();
+      const apiUrl = buildApiUrl(AI_FAST_MODEL, apiKey).replace('generateContent', 'streamGenerateContent');
+      
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          contents: messages.map(msg => ({
+            role: msg.role === 'user' ? 'user' : 'model',
+            parts: [{
+              text: msg.content
+            }]
+          })),
+          generationConfig: {
+            temperature: 0.8,
+            topK: 40,
+            topP: 0.95,
+            maxOutputTokens: 2048,
+          }
+        })
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        const errorData = JSON.parse(errorText);
+        const errorCode = errorData[0]?.error?.code;
+        
+        console.error('Chat API Error:', errorText);
+        
+        // Retry on quota errors
+        if (errorCode === 429 && attempt < retries - 1) {
+          console.warn(`⚠️ Chat quota exceeded, rotating to next API key... (attempt ${attempt + 1}/${retries})`);
+          continue; // Try immediately with next key
         }
-      })
-    });
+        
+        throw new Error(`AI API Error: ${response.statusText}`);
+      }
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('Chat API Error:', errorText);
-      throw new Error(`AI API Error: ${response.statusText}`);
-    }
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
 
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder();
-    let buffer = '';
+      while (true) {
+        const { done, value } = await reader.read();
+        
+        if (done) break;
+        
+        buffer += decoder.decode(value, { stream: true });
+        
+        // Gemini streaming returns JSON objects separated by newlines
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
 
-    while (true) {
-      const { done, value } = await reader.read();
-      
-      if (done) break;
-      
-      buffer += decoder.decode(value, { stream: true });
-      
-      // Gemini streaming returns JSON objects separated by newlines
-      const lines = buffer.split('\n');
-      buffer = lines.pop() || '';
-
-      for (const line of lines) {
-        if (line.trim()) {
-          try {
-            const data = JSON.parse(line);
-            const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-            if (text) {
-              onChunk(text);
+        for (const line of lines) {
+          if (line.trim()) {
+            try {
+              const data = JSON.parse(line);
+              const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+              if (text) {
+                onChunk(text);
+              }
+            } catch (e) {
+              // Skip invalid JSON
             }
-          } catch (e) {
-            // Skip invalid JSON
           }
         }
       }
+      
+      // Successfully streamed, return
+      return;
+      
+    } catch (error) {
+      console.error('Error streaming chat:', error);
+      
+      // If last attempt, throw error
+      if (attempt === retries - 1) {
+        throw error;
+      }
+      // Otherwise retry with next API key
     }
-  } catch (error) {
-    console.error('Error streaming chat:', error);
-    throw error;
   }
 }
 
