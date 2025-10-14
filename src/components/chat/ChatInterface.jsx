@@ -37,14 +37,46 @@ export default function ChatInterface({ paperContext, onClose }) {
     setInput('');
     setIsStreaming(true);
 
-    // Prepare messages for API
+    // Build comprehensive paper context
+    const paperInfo = [];
+    if (paperContext?.title) paperInfo.push(`Title: ${paperContext.title}`);
+    if (paperContext?.authors?.length) paperInfo.push(`Authors: ${paperContext.authors.join(', ')}`);
+    if (paperContext?.summary) paperInfo.push(`Summary: ${paperContext.summary}`);
+    if (paperContext?.methodology) paperInfo.push(`Methodology: ${paperContext.methodology}`);
+    if (paperContext?.keyFindings?.length) {
+      const findings = paperContext.keyFindings.map(f => 
+        typeof f === 'string' ? f : f.finding || f.text
+      ).filter(Boolean).slice(0, 5);
+      if (findings.length) paperInfo.push(`Key Findings:\n${findings.map((f, i) => `${i + 1}. ${f}`).join('\n')}`);
+    }
+
+    // Prepare messages with strong paper context and restrictions
+    const systemPrompt = `You are an AI research assistant analyzing this specific research paper. 
+
+PAPER INFORMATION:
+${paperInfo.join('\n\n')}
+
+STRICT RULES:
+1. Answer ONLY questions about THIS paper
+2. Use information from the paper context above
+3. If asked about topics outside this paper, politely redirect to the paper
+4. Be concise and accurate
+5. Cite specific findings, methods, or sections when answering
+6. If you don't have enough information from the paper, say so
+
+Remember: You are discussing THIS specific research paper only.`;
+
     const apiMessages = [
       {
         role: 'user',
-        content: `You are analyzing this research paper${paperContext?.title ? `: "${paperContext.title}"` : ''}. ${paperContext?.summary ? `Summary: ${paperContext.summary}. ` : ''}Answer questions based on this context.`
+        content: systemPrompt
       },
-      ...messages.filter(m => m.role !== 'system').map(m => ({
-        role: m.role,
+      {
+        role: 'model',
+        content: 'I understand. I will only answer questions about this specific research paper using the information provided.'
+      },
+      ...messages.slice(1).map(m => ({
+        role: m.role === 'user' ? 'user' : 'model',
         content: m.content
       })),
       {
@@ -71,7 +103,7 @@ export default function ChatInterface({ paperContext, onClose }) {
       });
     } catch (error) {
       console.error('Chat error:', error);
-      assistantMessage.content = 'Sorry, I encountered an error. Please try again.';
+      assistantMessage.content = '❌ Sorry, I encountered an error. Please try again.';
       setMessages(prev => [
         ...prev.slice(0, -1),
         assistantMessage

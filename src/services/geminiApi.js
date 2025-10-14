@@ -6,7 +6,7 @@ const getApiKey = () => AI_API_KEY;
 
 const AI_FAST_MODEL = 'gemini-2.5-flash';
 const AI_ADVANCED_MODEL = 'gemini-2.5-pro';
-const AI_FALLBACK_MODEL = 'gemini-1.5-flash'; // Fallback model
+const AI_FALLBACK_MODEL = 'gemini-2.5-flash'; // Fallback model
 
 const buildApiUrl = (model, apiKey) => 
   `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
@@ -294,13 +294,14 @@ export async function generateStructuredContent(prompt, schema, useAdvancedModel
   }
 }
 
-// Stream content for chat with retry and rotation
+// Stream content for chat with retry and rotation (optimized for speed)
 export async function streamChatResponse(messages, onChunk, retries = 3) {
   for (let attempt = 0; attempt < retries; attempt++) {
     try {
-      // Get fresh API key for each attempt
+      // Use gemini-2.5-flash explicitly for fast responses
       const apiKey = getApiKey();
-      const apiUrl = buildApiUrl(AI_FAST_MODEL, apiKey).replace('generateContent', 'streamGenerateContent');
+      const chatModel = 'gemini-2.5-flash'; // Fast model for chat
+      const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${chatModel}:streamGenerateContent?key=${apiKey}`;
       
       const response = await fetch(apiUrl, {
         method: 'POST',
@@ -309,34 +310,49 @@ export async function streamChatResponse(messages, onChunk, retries = 3) {
         },
         body: JSON.stringify({
           contents: messages.map(msg => ({
-            role: msg.role === 'user' ? 'user' : 'model',
+            role: msg.role,
             parts: [{
               text: msg.content
             }]
           })),
           generationConfig: {
-            temperature: 0.8,
+            temperature: 0.7,  // Slightly lower for more focused responses
             topK: 40,
             topP: 0.95,
-            maxOutputTokens: 2048,
-          }
+            maxOutputTokens: 1024, // Faster responses with reasonable length
+            candidateCount: 1
+          },
+          safetySettings: [
+            { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_NONE' },
+            { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_NONE' },
+            { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_NONE' },
+            { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_NONE' }
+          ]
         })
       });
 
       if (!response.ok) {
         const errorText = await response.text();
-        const errorData = JSON.parse(errorText);
-        const errorCode = errorData[0]?.error?.code;
+        let errorData;
+        try {
+          errorData = JSON.parse(errorText);
+        } catch (e) {
+          errorData = { error: { message: errorText } };
+        }
         
-        console.error('Chat API Error:', errorText);
+        const errorCode = errorData[0]?.error?.code || errorData.error?.code;
+        const errorMessage = errorData[0]?.error?.message || errorData.error?.message || response.statusText;
+        
+        console.error('💬 Chat API Error:', errorMessage);
         
         // Retry on quota errors
         if (errorCode === 429 && attempt < retries - 1) {
-          console.warn(`⚠️ Chat quota exceeded, rotating to next API key... (attempt ${attempt + 1}/${retries})`);
-          continue; // Try immediately with next key
+          console.warn(`⚠️ Chat quota exceeded, retrying... (attempt ${attempt + 1}/${retries})`);
+          await new Promise(resolve => setTimeout(resolve, 1000)); // Brief delay
+          continue;
         }
         
-        throw new Error(`AI API Error: ${response.statusText}`);
+        throw new Error(`Chat Error: ${errorMessage}`);
       }
 
       const reader = response.body.getReader();
