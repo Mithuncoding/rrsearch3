@@ -1,26 +1,8 @@
-// AI API Configuration with rotation
-const API_KEYS = [
-  'AIzaSyDNK5X9mr8AB0wjy9D2gtvpCdQ0FUecj5Y',
-  'AIzaSyDsE6eI6fDUo756_ADuRAm1wkUiWSGTupI',
-  'AIzaSyDPCJ-ZQIFn88zsyDeIsR7nQGearUEY3z8',
-  'AIzaSyBY4PXJnUOSSBxB0wJIYCYDcKJ9AhQsQrU',
-  'AIzaSyBHFWFQDA0kkxobLvoqwV_fc7xHbuRvI00',
-  'AIzaSyAGoeza5zsrOIdvp7aZ-7_FlpnUVYUpcwU'
-];
+// AI API Configuration
+const AI_API_KEY = 'AIzaSyAGoeza5zsrOIdvp7aZ-7_FlpnUVYUpcwU';
 
-let currentKeyIndex = 0;
-
-// Mask API key for logging
-const maskKey = (key) => `${key.substring(0, 8)}...${key.substring(key.length - 4)}`;
-
-// Get current API key with rotation
-const getApiKey = () => {
-  const key = API_KEYS[currentKeyIndex];
-  const nextIndex = (currentKeyIndex + 1) % API_KEYS.length;
-  console.log(`🔑 Using API key ${currentKeyIndex + 1}/${API_KEYS.length}: ${maskKey(key)}`);
-  currentKeyIndex = nextIndex; // Rotate
-  return key;
-};
+// Get API key (simple, no rotation needed with single key)
+const getApiKey = () => AI_API_KEY;
 
 const AI_FAST_MODEL = 'gemini-2.5-flash';
 const AI_ADVANCED_MODEL = 'gemini-2.5-pro';
