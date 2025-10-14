@@ -195,14 +195,27 @@ export default function AnalysisPage() {
     try {
       const file = uploadedFiles[0];
       if (file.name.endsWith('.pdf')) {
-        const imgs = await extractPDFImages(new File([file.parsedData], file.name));
-        setCache(prev => ({ ...prev, figures: imgs }));
-        toast.success(`Extracted ${imgs.length} figures!`);
+        // Create proper file object from parsed data
+        const blob = new Blob([file.parsedData.raw || file.parsedData], { type: 'application/pdf' });
+        const pdfFile = new File([blob], file.name, { type: 'application/pdf' });
+        
+        const imgs = await extractPDFImages(pdfFile);
+        
+        if (imgs && imgs.length > 0) {
+          setCache(prev => ({ ...prev, figures: imgs }));
+          toast.success(`Extracted ${imgs.length} figures!`);
+        } else {
+          setCache(prev => ({ ...prev, figures: [] }));
+          toast.info('No figures found in this PDF');
+        }
       } else {
         toast.info('Figure extraction only available for PDF files');
+        setCache(prev => ({ ...prev, figures: [] }));
       }
     } catch (error) {
-      toast.error('Failed to extract figures');
+      console.error('Figure extraction error:', error);
+      setCache(prev => ({ ...prev, figures: [] }));
+      toast.error('Could not extract figures from this PDF');
     } finally {
       setLoadingTabs(prev => ({ ...prev, figures: false }));
     }

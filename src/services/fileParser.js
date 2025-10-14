@@ -17,13 +17,23 @@ export async function parsePDF(file) {
     }
     
     const arrayBuffer = await file.arrayBuffer();
+    
+    // Validate PDF structure
+    if (arrayBuffer.byteLength === 0) {
+      throw new Error('PDF file is empty');
+    }
+    
     const pdf = await pdfjsLib.getDocument({ 
       data: arrayBuffer,
-      // Optimize for mobile performance
+      // Optimize for mobile performance and error handling
       useWorkerFetch: false,
       isEvalSupported: false,
       disableAutoFetch: true,
-      disableStream: true
+      disableStream: true,
+      verbosity: 0, // Reduce console warnings
+      standardFontDataUrl: 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/standard_fonts/',
+      cMapUrl: 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/cmaps/',
+      cMapPacked: true
     }).promise;
     
     let fullText = '';
@@ -162,7 +172,21 @@ export async function extractPDFImages(file) {
     }
     
     const arrayBuffer = await file.arrayBuffer();
-    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+    
+    // Validate PDF before processing
+    if (!arrayBuffer || arrayBuffer.byteLength === 0) {
+      console.warn('Empty PDF file for image extraction');
+      return [];
+    }
+    
+    const pdf = await pdfjsLib.getDocument({ 
+      data: arrayBuffer,
+      verbosity: 0, // Suppress warnings
+      standardFontDataUrl: 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/standard_fonts/',
+      cMapUrl: 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/cmaps/',
+      cMapPacked: true
+    }).promise;
+    
     const figures = [];
     
     for (let i = 1; i <= pdf.numPages; i++) {
@@ -191,6 +215,7 @@ export async function extractPDFImages(file) {
     return figures;
   } catch (error) {
     console.error('Error extracting PDF images:', error);
+    // Return empty array instead of throwing - graceful degradation
     return [];
   }
 }
