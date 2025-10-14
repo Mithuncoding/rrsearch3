@@ -1,5 +1,5 @@
 // AI API Configuration
-const AI_API_KEY = 'AIzaSyAGoeza5zsrOIdvp7aZ-7_FlpnUVYUpcwU';
+const AI_API_KEY = 'AIzaSyBaPW9f5Xpy3fh8YODCMQKQbNW99jKNjFQ';
 
 // Get API key (simple, no rotation needed with single key)
 const getApiKey = () => AI_API_KEY;
