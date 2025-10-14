@@ -1,12 +1,11 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Download, Share2, MessageSquare, Sparkles, BookOpen, Lightbulb, Image as ImageIcon, BookMarked, ExternalLink, User, CheckCircle2 } from 'lucide-react';
+import { ArrowLeft, Download, Share2, MessageSquare, Sparkles, BookOpen, Lightbulb, BookMarked, ExternalLink, User, CheckCircle2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAppStore } from '../store/useAppStore';
 import { useMetricsStore } from '../store/useMetricsStore';
 import { generateCoreAnalysis, generateAdvancedAnalysis, extractReferences } from '../services/analysisService';
 import { evaluateAnalysisQuality } from '../services/evaluationService';
-import { extractPDFImages } from '../services/fileParser';
 import { exportAsPDF, exportAsMarkdown, exportAsPPTX } from '../services/exportService';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
@@ -17,7 +16,6 @@ import { toast } from '../components/ui/Toaster';
 import OverviewTab from '../components/analysis/OverviewTab';
 import CritiqueTab from '../components/analysis/CritiqueTab';
 import IdeationTab from '../components/analysis/IdeationTab';
-import FiguresTab from '../components/analysis/FiguresTab';
 import ReferencesTab from '../components/analysis/ReferencesTab';
 import RelatedPapersTab from '../components/analysis/RelatedPapersTab';
 import ChatInterface from '../components/chat/ChatInterface';
@@ -39,7 +37,6 @@ export default function AnalysisPage() {
     overview: null,
     critique: null,
     ideation: null,
-    figures: null,
     references: null,
     related: null
   });
@@ -78,31 +75,30 @@ export default function AnalysisPage() {
       
       const coreAnalysis = await generateCoreAnalysis(text, persona);
 
+      // Store in currentAnalysis AND cache for persistence
       setCurrentAnalysis(coreAnalysis);
       
-      // Cache core data
       setCache(prev => ({
         ...prev,
         takeaways: coreAnalysis.keyFindings,
         overview: coreAnalysis
       }));
 
-      // Evaluate analysis quality for IEEE metrics
-      try {
-        setLoadingStage('Evaluating analysis quality...');
-        const evaluation = await evaluateAnalysisQuality(coreAnalysis, text);
-        addEvaluation(evaluation);
-        incrementMetric('analysesGenerated');
-        console.log('Quality Score:', evaluation.qualityScore, '- Rating:', evaluation.rating);
-      } catch (error) {
-        console.error('Evaluation error:', error);
-      }
-
+      // Stop loading immediately after core analysis
       setIsAnalyzing(false);
       setLoadingStage('');
+      toast.success('Analysis complete!');
 
-      // Auto-load critique after core analysis
-      setTimeout(() => loadCritique(), 500);
+      // Evaluate quality in background (non-blocking)
+      evaluateAnalysisQuality(coreAnalysis, text)
+        .then(evaluation => {
+          addEvaluation(evaluation);
+          incrementMetric('analysesGenerated');
+          console.log('Quality Score:', evaluation.qualityScore, '- Rating:', evaluation.rating);
+        })
+        .catch(error => {
+          console.error('Evaluation error:', error);
+        });
 
       addToHistory({
         ...coreAnalysis,
@@ -178,46 +174,6 @@ export default function AnalysisPage() {
       toast.error('Failed to generate hypotheses');
     } finally {
       setLoadingTabs(prev => ({ ...prev, ideation: false }));
-    }
-  };
-
-  // Load figures with caching
-  const loadFigures = async () => {
-    if (cache.figures) {
-      setActiveTab('figures');
-      return;
-    }
-
-    if (loadingTabs.figures) return;
-
-    setLoadingTabs(prev => ({ ...prev, figures: true }));
-    
-    try {
-      const file = uploadedFiles[0];
-      if (file.name.endsWith('.pdf')) {
-        // Create proper file object from parsed data
-        const blob = new Blob([file.parsedData.raw || file.parsedData], { type: 'application/pdf' });
-        const pdfFile = new File([blob], file.name, { type: 'application/pdf' });
-        
-        const imgs = await extractPDFImages(pdfFile);
-        
-        if (imgs && imgs.length > 0) {
-          setCache(prev => ({ ...prev, figures: imgs }));
-          toast.success(`Extracted ${imgs.length} figures!`);
-        } else {
-          setCache(prev => ({ ...prev, figures: [] }));
-          toast.info('No figures found in this PDF');
-        }
-      } else {
-        toast.info('Figure extraction only available for PDF files');
-        setCache(prev => ({ ...prev, figures: [] }));
-      }
-    } catch (error) {
-      console.error('Figure extraction error:', error);
-      setCache(prev => ({ ...prev, figures: [] }));
-      toast.error('Could not extract figures from this PDF');
-    } finally {
-      setLoadingTabs(prev => ({ ...prev, figures: false }));
     }
   };
 
@@ -327,10 +283,6 @@ export default function AnalysisPage() {
         break;
       case 'ideation':
         loadIdeation();
-        setActiveTab(tab);
-        break;
-      case 'figures':
-        loadFigures();
         setActiveTab(tab);
         break;
       case 'references':
@@ -497,16 +449,6 @@ export default function AnalysisPage() {
               Ideation Lab
             </TopTab>
             <TopTab 
-              active={activeTab === 'figures'} 
-              onClick={() => handleTabClick('figures')}
-              icon={<ImageIcon className="w-4 h-4" />}
-              gradient="from-emerald-600 to-emerald-500"
-              loading={loadingTabs.figures}
-              loaded={!!cache.figures}
-            >
-              Figures
-            </TopTab>
-            <TopTab 
               active={activeTab === 'references'} 
               onClick={() => handleTabClick('references')}
               icon={<BookMarked className="w-4 h-4" />}
@@ -538,10 +480,10 @@ export default function AnalysisPage() {
               exit={{ opacity: 0, y: -20 }}
               transition={{ duration: 0.3 }}
             >
-              {activeTab === 'takeaways' && currentAnalysis?.keyFindings && (
+              {activeTab === 'takeaways' && (cache.takeaways || currentAnalysis?.keyFindings) && (
                 <div className="space-y-4">
                   <h2 className="text-2xl font-bold gradient-text mb-6">Key Takeaways</h2>
-                  {currentAnalysis.keyFindings.map((finding, i) => {
+                  {(cache.takeaways || currentAnalysis.keyFindings).map((finding, i) => {
                     // Handle both string and object formats
                     const findingText = typeof finding === 'string' ? finding : finding.finding;
                     const evidence = typeof finding === 'object' ? finding.evidence : null;
@@ -573,8 +515,8 @@ export default function AnalysisPage() {
                 </div>
               )}
 
-              {activeTab === 'overview' && currentAnalysis && (
-                <OverviewTab analysis={currentAnalysis} />
+              {activeTab === 'overview' && (cache.overview || currentAnalysis) && (
+                <OverviewTab analysis={cache.overview || currentAnalysis} />
               )}
 
               {activeTab === 'critique' && (
@@ -627,25 +569,6 @@ export default function AnalysisPage() {
                 )
               )}
 
-              {activeTab === 'figures' && (
-                loadingTabs.figures ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {[1, 2, 3, 4].map((i) => (
-                      <div key={i} className="bg-white rounded-2xl p-4 border border-slate-200 animate-pulse">
-                        <div className="aspect-video bg-slate-200 rounded-lg mb-3"></div>
-                        <div className="h-4 bg-slate-200 rounded w-3/4"></div>
-                      </div>
-                    ))}
-                  </div>
-                ) : cache.figures ? (
-                  <FiguresTab figures={cache.figures} paperContext={currentAnalysis?.summary} />
-                ) : (
-                  <div className="text-center py-16">
-                    <p className="text-slate-600">No figures loaded yet</p>
-                  </div>
-                )
-              )}
-
               {activeTab === 'references' && (
                 loadingTabs.references ? (
                   <div className="space-y-4">
@@ -677,7 +600,6 @@ export default function AnalysisPage() {
       {showChat && currentAnalysis && (
         <ChatInterface 
           paperContext={currentAnalysis} 
-          figures={cache.figures || []}
           onClose={() => setShowChat(false)} 
         />
       )}

@@ -303,6 +303,8 @@ export async function streamChatResponse(messages, onChunk) {
     });
 
     if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Chat API Error:', errorText);
       throw new Error(`AI API Error: ${response.statusText}`);
     }
 
@@ -316,14 +318,15 @@ export async function streamChatResponse(messages, onChunk) {
       if (done) break;
       
       buffer += decoder.decode(value, { stream: true });
+      
+      // Gemini streaming returns JSON objects separated by newlines
       const lines = buffer.split('\n');
       buffer = lines.pop() || '';
 
       for (const line of lines) {
-        if (line.trim() && line.startsWith('data: ')) {
+        if (line.trim()) {
           try {
-            const jsonStr = line.slice(6);
-            const data = JSON.parse(jsonStr);
+            const data = JSON.parse(line);
             const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
             if (text) {
               onChunk(text);

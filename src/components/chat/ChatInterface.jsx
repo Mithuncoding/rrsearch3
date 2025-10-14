@@ -5,7 +5,7 @@ import { Card } from '../ui/Card';
 import { Spinner } from '../ui/Spinner';
 import { streamChatResponse } from '../../services/geminiApi';
 
-export default function ChatInterface({ paperContext, figures, onClose }) {
+export default function ChatInterface({ paperContext, onClose }) {
   const [messages, setMessages] = useState([
     {
       role: 'assistant',
@@ -14,8 +14,6 @@ export default function ChatInterface({ paperContext, figures, onClose }) {
   ]);
   const [input, setInput] = useState('');
   const [isStreaming, setIsStreaming] = useState(false);
-  const [attachedFigure, setAttachedFigure] = useState(null);
-  const [showFigurePicker, setShowFigurePicker] = useState(false);
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
 
@@ -28,17 +26,15 @@ export default function ChatInterface({ paperContext, figures, onClose }) {
   }, [messages]);
 
   const handleSend = async () => {
-    if (!input.trim() && !attachedFigure) return;
+    if (!input.trim()) return;
 
     const userMessage = {
       role: 'user',
-      content: input,
-      figure: attachedFigure
+      content: input
     };
 
     setMessages(prev => [...prev, userMessage]);
     setInput('');
-    setAttachedFigure(null);
     setIsStreaming(true);
 
     // Prepare messages for API
@@ -49,11 +45,11 @@ export default function ChatInterface({ paperContext, figures, onClose }) {
       },
       ...messages.filter(m => m.role !== 'system').map(m => ({
         role: m.role,
-        content: m.content + (m.figure ? ` [User is asking about Figure ${m.figure.pageNumber}]` : '')
+        content: m.content
       })),
       {
         role: 'user',
-        content: input + (attachedFigure ? ` [Question about Figure ${attachedFigure.pageNumber}]` : '')
+        content: input
       }
     ];
 
@@ -144,67 +140,9 @@ export default function ChatInterface({ paperContext, figures, onClose }) {
           <div ref={messagesEndRef} />
         </div>
 
-        {/* Attached Figure Preview */}
-        {attachedFigure && (
-          <div className="px-4 py-2 bg-prism-50 border-t border-prism-200">
-            <div className="flex items-center gap-3">
-              <img
-                src={attachedFigure.dataUrl}
-                alt="Attached"
-                className="w-16 h-16 object-contain rounded border border-slate-300"
-              />
-              <div className="flex-1">
-                <p className="text-sm font-medium text-slate-800">
-                  Figure {attachedFigure.pageNumber}
-                </p>
-                <p className="text-xs text-slate-600">Will be included in your message</p>
-              </div>
-              <button
-                onClick={() => setAttachedFigure(null)}
-                className="p-1 hover:bg-slate-200 rounded"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
-        )}
-
         {/* Input */}
         <div className="p-4 border-t border-slate-200">
           <div className="flex gap-2">
-            <div className="relative">
-              <button
-                onClick={() => setShowFigurePicker(!showFigurePicker)}
-                className="p-3 hover:bg-slate-100 rounded-lg transition-colors"
-                disabled={!figures || figures.length === 0}
-              >
-                <Paperclip className="w-5 h-5 text-slate-600" />
-              </button>
-
-              {showFigurePicker && figures && figures.length > 0 && (
-                <div className="absolute bottom-full left-0 mb-2 w-64 max-h-80 overflow-y-auto glass-card p-2 shadow-xl">
-                  <p className="text-xs font-semibold text-slate-600 mb-2 px-2">Select a figure:</p>
-                  {figures.map((fig, i) => (
-                    <button
-                      key={i}
-                      onClick={() => {
-                        setAttachedFigure(fig);
-                        setShowFigurePicker(false);
-                      }}
-                      className="w-full p-2 hover:bg-slate-100 rounded-lg transition-colors flex items-center gap-2"
-                    >
-                      <img
-                        src={fig.dataUrl}
-                        alt={`Figure ${fig.pageNumber}`}
-                        className="w-12 h-12 object-contain rounded border border-slate-300"
-                      />
-                      <span className="text-sm text-slate-700">Figure {fig.pageNumber}</span>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-
             <input
               ref={inputRef}
               type="text"
@@ -216,7 +154,7 @@ export default function ChatInterface({ paperContext, figures, onClose }) {
               disabled={isStreaming}
             />
 
-            <Button onClick={handleSend} disabled={isStreaming || (!input.trim() && !attachedFigure)}>
+            <Button onClick={handleSend} disabled={isStreaming || !input.trim()}>
               <Send className="w-5 h-5" />
             </Button>
           </div>
