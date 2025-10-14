@@ -21,12 +21,20 @@ export default function ReferencesTab({ references }) {
 
   if (references.length === 0) {
     return (
-      <div className="text-center py-12">
-        <BookMarked className="w-16 h-16 text-slate-300 mx-auto mb-4" />
-        <h3 className="text-lg font-semibold text-slate-600 mb-2">No References Found</h3>
-        <p className="text-slate-500 text-sm">
-          This document doesn't contain a clear bibliography section.
+      <div className="text-center py-16 fade-in-up">
+        <div className="inline-flex items-center justify-center w-24 h-24 bg-gradient-to-br from-slate-100 to-slate-200 rounded-full mb-6">
+          <BookMarked className="w-12 h-12 text-slate-400" />
+        </div>
+        <h3 className="text-2xl font-bold text-slate-700 mb-3">No References Found</h3>
+        <p className="text-slate-500 text-base max-w-md mx-auto mb-6">
+          This document doesn't contain a clear bibliography or references section.
         </p>
+        <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 max-w-lg mx-auto">
+          <p className="text-sm text-slate-600">
+            <strong>💡 Note:</strong> Some papers may have inline citations but no formal reference list, 
+            or the PDF structure may not be recognized by the parser.
+          </p>
+        </div>
       </div>
     );
   }

@@ -112,18 +112,38 @@ Provide explanations for the correct answers.`;
  * Extract and format references
  */
 export async function extractReferences(text) {
-  const prompt = `Extract all references/citations from the bibliography section of this paper.
+  // Look for common bibliography section markers
+  const bibMarkers = ['references', 'bibliography', 'works cited', 'citations'];
+  const lowerText = text.toLowerCase();
+  let hasBibSection = bibMarkers.some(marker => lowerText.includes(marker));
+  
+  // Extract the bibliography section if found (last 30% of paper is typical)
+  const bibStart = Math.floor(text.length * 0.7);
+  const potentialBibSection = text.substring(bibStart);
+  
+  const prompt = `Extract all references/citations from this research paper's bibliography section.
 
-Paper text:
-${text}
+${hasBibSection ? 'Bibliography section:' : 'Paper text:'}
+${potentialBibSection.substring(0, 15000)}
 
-For each reference, provide:
-1. APA format
-2. BibTeX format
+IMPORTANT:
+- Extract ONLY if there are actual citations/references present
+- Return an EMPTY array if no references/bibliography section exists
+- For each reference found, provide:
+  1. APA format (author, year, title, journal/publisher)
+  2. BibTeX format (properly formatted for LaTeX)
 
-If no clear bibliography section exists, extract any citations you can find.`;
+Look for patterns like:
+- [1] Author et al. (Year). Title...
+- Author, A. (Year). Title. Journal...
+- Numbered or bulleted citations`;
 
-  return generateStructuredContent(prompt, SCHEMAS.references, false); // Use Flash model
+  const result = await generateStructuredContent(prompt, SCHEMAS.references, false);
+  
+  // Return empty array if no references found
+  return {
+    references: result.references || []
+  };
 }
 
 /**

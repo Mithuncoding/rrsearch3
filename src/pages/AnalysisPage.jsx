@@ -193,11 +193,20 @@ export default function AnalysisPage() {
       const text = file.parsedData.text;
       const refs = await extractReferences(text);
       
-      setCurrentAnalysis(prev => ({ ...prev, references: refs.references }));
-      setCache(prev => ({ ...prev, references: refs.references }));
+      const references = refs.references || [];
       
-      toast.success('References extracted!');
+      setCurrentAnalysis(prev => ({ ...prev, references }));
+      setCache(prev => ({ ...prev, references }));
+      
+      if (references.length === 0) {
+        toast.info('No references found in this paper');
+      } else {
+        toast.success(`Extracted ${references.length} reference${references.length > 1 ? 's' : ''}!`);
+      }
     } catch (error) {
+      console.error('Reference extraction error:', error);
+      // Set empty array on error so UI shows "no references found"
+      setCache(prev => ({ ...prev, references: [] }));
       toast.error('Failed to extract references');
     } finally {
       setLoadingTabs(prev => ({ ...prev, references: false }));
