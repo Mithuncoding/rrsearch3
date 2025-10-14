@@ -9,7 +9,7 @@ export default function ChatInterface({ paperContext, onClose }) {
   const [messages, setMessages] = useState([
     {
       role: 'assistant',
-      content: `Hello! I'm your AI research assistant. I have full context of the paper "${paperContext.title}". Feel free to ask me anything about it!`
+      content: `Hello! I'm your AI research assistant. I have full context of the paper${paperContext?.title ? ` "${paperContext.title}"` : ''}. Feel free to ask me anything about it!`
     }
   ]);
   const [input, setInput] = useState('');
@@ -41,7 +41,7 @@ export default function ChatInterface({ paperContext, onClose }) {
     const apiMessages = [
       {
         role: 'user',
-        content: `You are analyzing this research paper: "${paperContext.title}". Summary: ${paperContext.summary}. Answer questions based on this context.`
+        content: `You are analyzing this research paper${paperContext?.title ? `: "${paperContext.title}"` : ''}. ${paperContext?.summary ? `Summary: ${paperContext.summary}. ` : ''}Answer questions based on this context.`
       },
       ...messages.filter(m => m.role !== 'system').map(m => ({
         role: m.role,
