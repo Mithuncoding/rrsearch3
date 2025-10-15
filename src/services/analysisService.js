@@ -188,35 +188,122 @@ Each slide should have a title and 3-5 bullet points of content.`;
 /**
  * Find related papers using search
  */
-export async function findRelatedPapers(title, summary) {
-  // Note: This would ideally use Google Search grounding in Gemini
-  // For now, we'll generate search queries
-  const prompt = `Generate 5 search queries to find papers related to this research.
+export async function findRelatedPapers(title, summary, methodology, keyFindings) {
+  const findingsText = Array.isArray(keyFindings) 
+    ? keyFindings.map(f => typeof f === 'string' ? f : f.finding).slice(0, 3).join('; ')
+    : '';
 
+  const prompt = `Generate comprehensive, targeted search queries to find papers related to this research. These queries will be used on Google Scholar.
+
+PAPER DETAILS:
 Title: ${title}
 Summary: ${summary}
+Methodology: ${methodology || 'Not specified'}
+Key Findings: ${findingsText}
 
-Return queries that would find:
-- Papers on similar topics
-- Papers using similar methods
-- Papers with contradictory findings
-- Recent advances in this area
-- Foundational/seminal work`;
+Generate 12-15 high-quality search queries organized into these categories:
+
+1. SIMILAR WORK (3-4 queries): Papers on the exact same topic, problem, or domain
+2. METHODOLOGY (2-3 queries): Papers using similar methods, techniques, or frameworks
+3. EVOLUTION (2-3 queries): Foundational work, seminal papers, or historical development of these ideas
+4. CONTRADICTORY (2-3 queries): Papers with opposing views, contradictory findings, or critiques
+
+REQUIREMENTS:
+- Each query should be specific, technical, and 5-15 words
+- Use relevant academic terminology
+- Include authors, years, or specific technical terms when relevant
+- Queries should yield real research papers on Google Scholar
+- Avoid generic terms; be specific and actionable
+
+For each query, also provide a brief reason (15-25 words) explaining why this query is relevant.`;
 
   const schema = {
     type: 'object',
     properties: {
-      queries: {
-        type: 'array',
-        items: { type: 'string' },
-        minItems: 5,
-        maxItems: 5
+      categorizedQueries: {
+        type: 'object',
+        properties: {
+          similar: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                query: { type: 'string' },
+                reason: { type: 'string' }
+              },
+              required: ['query', 'reason']
+            },
+            minItems: 3,
+            maxItems: 4
+          },
+          methodology: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                query: { type: 'string' },
+                reason: { type: 'string' }
+              },
+              required: ['query', 'reason']
+            },
+            minItems: 2,
+            maxItems: 3
+          },
+          evolution: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                query: { type: 'string' },
+                reason: { type: 'string' }
+              },
+              required: ['query', 'reason']
+            },
+            minItems: 2,
+            maxItems: 3
+          },
+          contradictory: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                query: { type: 'string' },
+                reason: { type: 'string' }
+              },
+              required: ['query', 'reason']
+            },
+            minItems: 2,
+            maxItems: 3
+          }
+        },
+        required: ['similar', 'methodology', 'evolution', 'contradictory']
       }
     },
-    required: ['queries']
+    required: ['categorizedQueries']
   };
 
-  return generateStructuredContent(prompt, schema, false);
+  const result = await generateStructuredContent(prompt, schema, false);
+  
+  // Add stats and flat queries array for backward compatibility
+  const allQueries = [
+    ...(result.categorizedQueries.similar || []),
+    ...(result.categorizedQueries.methodology || []),
+    ...(result.categorizedQueries.evolution || []),
+    ...(result.categorizedQueries.contradictory || [])
+  ];
+  
+  return {
+    ...result,
+    queries: allQueries.map(q => q.query),
+    stats: {
+      totalQueries: allQueries.length,
+      categories: 4,
+      similar: result.categorizedQueries.similar?.length || 0,
+      methodology: result.categorizedQueries.methodology?.length || 0,
+      evolution: result.categorizedQueries.evolution?.length || 0,
+      contradictory: result.categorizedQueries.contradictory?.length || 0
+    }
+  };
 }
 
 /**

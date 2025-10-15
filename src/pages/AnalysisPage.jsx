@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Download, Share2, MessageSquare, Sparkles, BookOpen, Lightbulb, User, CheckCircle2, Star } from 'lucide-react';
+import { ArrowLeft, Download, Share2, MessageSquare, Sparkles, BookOpen, Lightbulb, User, CheckCircle2, Star, Search } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAppStore } from '../store/useAppStore';
 import { useMetricsStore } from '../store/useMetricsStore';
@@ -16,6 +16,7 @@ import { toast } from '../components/ui/Toaster';
 import OverviewTab from '../components/analysis/OverviewTab';
 import CritiqueTab from '../components/analysis/CritiqueTab';
 import IdeationTab from '../components/analysis/IdeationTab';
+import RelatedPapersTab from '../components/analysis/RelatedPapersTab';
 import ChatInterface from '../components/chat/ChatInterface';
 
 export default function AnalysisPage() {
@@ -34,7 +35,8 @@ export default function AnalysisPage() {
     takeaways: null,
     overview: null,
     critique: null,
-    ideation: null
+    ideation: null,
+    related: null
   });
   
   const [loadingTabs, setLoadingTabs] = useState({});
@@ -225,11 +227,16 @@ export default function AnalysisPage() {
     try {
       const file = uploadedFiles[0];
       const text = file.parsedData.text;
-      const hypotheses = await generateAdvancedAnalysis(text, currentAnalysis);
+      const result = await generateAdvancedAnalysis(text, currentAnalysis);
       
-      const updatedAnalysis = { ...currentAnalysis, hypotheses: hypotheses.hypotheses };
+      const updatedAnalysis = { 
+        ...currentAnalysis, 
+        hypotheses: result.hypotheses,
+        strengths: result.strengths,
+        weaknesses: result.weaknesses
+      };
       setCurrentAnalysis(updatedAnalysis);
-      setCache(prev => ({ ...prev, ideation: hypotheses.hypotheses }));
+      setCache(prev => ({ ...prev, ideation: updatedAnalysis }));
       
       // Update history with ideation data
       addToHistory({
@@ -242,6 +249,7 @@ export default function AnalysisPage() {
       
       toast.success('AI Ideation Lab loaded!');
     } catch (error) {
+      console.error('Ideation error:', error);
       toast.error('Failed to generate hypotheses');
     } finally {
       setLoadingTabs(prev => ({ ...prev, ideation: false }));
@@ -313,6 +321,7 @@ export default function AnalysisPage() {
     switch(tab) {
       case 'takeaways':
       case 'overview':
+      case 'related':
         setActiveTab(tab);
         break;
       case 'critique':
@@ -479,6 +488,16 @@ export default function AnalysisPage() {
             >
               Ideation Lab
             </TopTab>
+            <TopTab 
+              active={activeTab === 'related'} 
+              onClick={() => handleTabClick('related')}
+              icon={<Search className="w-4 h-4" />}
+              gradient="from-green-600 to-green-500"
+              loading={loadingTabs.related}
+              loaded={!!cache.related}
+            >
+              Related Papers
+            </TopTab>
 
           </div>
         </Card>
@@ -574,12 +593,21 @@ export default function AnalysisPage() {
                     ))}
                   </div>
                 ) : cache.ideation ? (
-                  <IdeationTab analysis={{ ...currentAnalysis, hypotheses: cache.ideation }} />
+                  <IdeationTab analysis={cache.ideation} />
                 ) : (
                   <div className="text-center py-16">
                     <p className="text-slate-600">Click to generate AI hypotheses</p>
                   </div>
                 )
+              )}
+
+              {activeTab === 'related' && currentAnalysis && (
+                <RelatedPapersTab 
+                  title={currentAnalysis.title}
+                  summary={currentAnalysis.summary}
+                  methodology={currentAnalysis.methodology}
+                  keyFindings={currentAnalysis.keyFindings}
+                />
               )}
 
               {activeTab === 'references' && (
