@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Download, Share2, MessageSquare, Sparkles, BookOpen, Lightbulb, BookMarked, ExternalLink, User, CheckCircle2 } from 'lucide-react';
+import { ArrowLeft, Download, Share2, MessageSquare, Sparkles, BookOpen, Lightbulb, User, CheckCircle2, Star } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAppStore } from '../store/useAppStore';
 import { useMetricsStore } from '../store/useMetricsStore';
-import { generateCoreAnalysis, generateAdvancedAnalysis, extractReferences } from '../services/analysisService';
+import { generateCoreAnalysis, generateAdvancedAnalysis } from '../services/analysisService';
 import { evaluateAnalysisQuality } from '../services/evaluationService';
 import { exportAsPDF, exportAsMarkdown, exportAsPPTX } from '../services/exportService';
 import { Button } from '../components/ui/Button';
@@ -16,13 +16,11 @@ import { toast } from '../components/ui/Toaster';
 import OverviewTab from '../components/analysis/OverviewTab';
 import CritiqueTab from '../components/analysis/CritiqueTab';
 import IdeationTab from '../components/analysis/IdeationTab';
-import ReferencesTab from '../components/analysis/ReferencesTab';
-import RelatedPapersTab from '../components/analysis/RelatedPapersTab';
 import ChatInterface from '../components/chat/ChatInterface';
 
 export default function AnalysisPage() {
   const navigate = useNavigate();
-  const { uploadedFiles, currentAnalysis, setCurrentAnalysis, persona, setPersona, addToHistory } = useAppStore();
+  const { uploadedFiles, currentAnalysis, setCurrentAnalysis, persona, setPersona, addToHistory, findInHistory, generatePaperHash } = useAppStore();
   const { addEvaluation, incrementMetric } = useMetricsStore();
   const [activeTab, setActiveTab] = useState('takeaways');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -31,17 +29,16 @@ export default function AnalysisPage() {
   const [showChat, setShowChat] = useState(false);
   const [showExportMenu, setShowExportMenu] = useState(false);
   
-  // Smart caching - cache all loaded data
+  // Smart caching - cache all loaded data (persists during session)
   const [cache, setCache] = useState({
     takeaways: null,
     overview: null,
     critique: null,
-    ideation: null,
-    references: null,
-    related: null
+    ideation: null
   });
   
   const [loadingTabs, setLoadingTabs] = useState({});
+  const [paperHash, setPaperHash] = useState(null);
 
   useEffect(() => {
     if (uploadedFiles.length === 0) {
@@ -49,10 +46,62 @@ export default function AnalysisPage() {
       return;
     }
 
-    if (!currentAnalysis && persona) {
-      performAnalysis();
+    // If currentAnalysis is already set (from history page), restore the cache
+    if (currentAnalysis && !cache.overview) {
+      console.log('📚 Restoring analysis from history...');
+      
+      // Set paper hash if available
+      if (currentAnalysis.paperHash) {
+        setPaperHash(currentAnalysis.paperHash);
+      }
+      
+      // Restore cache from the existing analysis
+      setCache({
+        takeaways: currentAnalysis.keyFindings,
+        overview: currentAnalysis,
+        critique: currentAnalysis.strengths ? currentAnalysis : null,
+        ideation: currentAnalysis.hypotheses ? currentAnalysis : null
+      });
+      
+      toast.success('Analysis restored from history!');
+      return;
     }
-  }, [persona]);
+
+    if (!currentAnalysis && persona) {
+      checkHistoryOrAnalyze();
+    }
+  }, [persona, currentAnalysis]);
+  
+  // Check if paper was analyzed before
+  const checkHistoryOrAnalyze = async () => {
+    const file = uploadedFiles[0];
+    const text = file.parsedData.text;
+    const hash = generatePaperHash(text);
+    setPaperHash(hash);
+    
+    // Check history
+    const existingAnalysis = findInHistory(hash);
+    
+    if (existingAnalysis) {
+      console.log('📚 Found in history! Using cached analysis.');
+      toast.success('Found previous analysis! Loading instantly...');
+      
+      // Restore from history
+      setCurrentAnalysis(existingAnalysis);
+      setCache({
+        takeaways: existingAnalysis.keyFindings,
+        overview: existingAnalysis,
+        critique: existingAnalysis.strengths ? existingAnalysis : null,
+        ideation: existingAnalysis.hypotheses ? existingAnalysis : null
+      });
+      
+      return;
+    }
+    
+    // New paper, perform analysis
+    console.log('🆕 New paper detected. Starting analysis...');
+    performAnalysis(hash);
+  };
 
   const handleExpertiseSelection = (level) => {
     setPersona(level);
@@ -60,7 +109,7 @@ export default function AnalysisPage() {
     toast.success(`Expertise level set to ${level}`);
   };
 
-  const performAnalysis = async () => {
+  const performAnalysis = async (hash) => {
     setIsAnalyzing(true);
     const file = uploadedFiles[0];
     const text = file.parsedData.text;
@@ -87,7 +136,6 @@ export default function AnalysisPage() {
       // Stop loading immediately after core analysis
       setIsAnalyzing(false);
       setLoadingStage('');
-      toast.success('Analysis complete!');
 
       // Evaluate quality in background (non-blocking)
       evaluateAnalysisQuality(coreAnalysis, text)
@@ -100,9 +148,12 @@ export default function AnalysisPage() {
           console.error('Evaluation error:', error);
         });
 
+      // Add to history with paper hash and full cache
       addToHistory({
         ...coreAnalysis,
+        paperHash: hash || paperHash,
         fileName: file.name,
+        fullText: text, // Store full text for restoration
         analyzedAt: new Date().toISOString(),
       });
 
@@ -138,8 +189,18 @@ export default function AnalysisPage() {
       
       const advAnalysis = await generateAdvancedAnalysis(text, currentAnalysis);
       
-      setCurrentAnalysis(prev => ({ ...prev, ...advAnalysis }));
+      const updatedAnalysis = { ...currentAnalysis, ...advAnalysis };
+      setCurrentAnalysis(updatedAnalysis);
       setCache(prev => ({ ...prev, critique: advAnalysis }));
+      
+      // Update history with critique data
+      addToHistory({
+        ...updatedAnalysis,
+        paperHash,
+        fileName: file.name,
+        fullText: text, // Store full text
+        analyzedAt: new Date().toISOString(),
+      });
       
       toast.success('Critique analysis ready!');
     } catch (error) {
@@ -166,8 +227,18 @@ export default function AnalysisPage() {
       const text = file.parsedData.text;
       const hypotheses = await generateAdvancedAnalysis(text, currentAnalysis);
       
-      setCurrentAnalysis(prev => ({ ...prev, hypotheses: hypotheses.hypotheses }));
+      const updatedAnalysis = { ...currentAnalysis, hypotheses: hypotheses.hypotheses };
+      setCurrentAnalysis(updatedAnalysis);
       setCache(prev => ({ ...prev, ideation: hypotheses.hypotheses }));
+      
+      // Update history with ideation data
+      addToHistory({
+        ...updatedAnalysis,
+        paperHash,
+        fileName: file.name,
+        fullText: text, // Store full text
+        analyzedAt: new Date().toISOString(),
+      });
       
       toast.success('AI Ideation Lab loaded!');
     } catch (error) {
@@ -177,49 +248,7 @@ export default function AnalysisPage() {
     }
   };
 
-  // Load references with caching
-  const loadReferences = async () => {
-    if (cache.references) {
-      setActiveTab('references');
-      return;
-    }
 
-    if (loadingTabs.references) return;
-
-    setLoadingTabs(prev => ({ ...prev, references: true }));
-    
-    try {
-      const file = uploadedFiles[0];
-      const text = file.parsedData.text;
-      const refs = await extractReferences(text);
-      
-      const references = refs.references || [];
-      
-      setCurrentAnalysis(prev => ({ ...prev, references }));
-      setCache(prev => ({ ...prev, references }));
-      
-      if (references.length === 0) {
-        toast.info('No references found in this paper');
-      } else {
-        toast.success(`Extracted ${references.length} reference${references.length > 1 ? 's' : ''}!`);
-      }
-    } catch (error) {
-      console.error('Reference extraction error:', error);
-      // Set empty array on error so UI shows "no references found"
-      setCache(prev => ({ ...prev, references: [] }));
-      toast.error('Failed to extract references');
-    } finally {
-      setLoadingTabs(prev => ({ ...prev, references: false }));
-    }
-  };
-
-  // Load related papers (cached immediately as it uses existing data)
-  const loadRelatedPapers = () => {
-    if (!cache.related) {
-      setCache(prev => ({ ...prev, related: true }));
-    }
-    setActiveTab('related');
-  };
 
   const handleExport = async (format) => {
     try {
@@ -293,13 +322,6 @@ export default function AnalysisPage() {
       case 'ideation':
         loadIdeation();
         setActiveTab(tab);
-        break;
-      case 'references':
-        loadReferences();
-        setActiveTab(tab);
-        break;
-      case 'related':
-        loadRelatedPapers();
         break;
       default:
         setActiveTab(tab);
@@ -440,7 +462,7 @@ export default function AnalysisPage() {
             <TopTab 
               active={activeTab === 'critique'} 
               onClick={() => handleTabClick('critique')}
-              icon={<BookMarked className="w-4 h-4" />}
+              icon={<Star className="w-4 h-4" />}
               gradient="from-purple-600 to-purple-500"
               loading={loadingTabs.critique}
               loaded={!!cache.critique}
@@ -457,25 +479,7 @@ export default function AnalysisPage() {
             >
               Ideation Lab
             </TopTab>
-            <TopTab 
-              active={activeTab === 'references'} 
-              onClick={() => handleTabClick('references')}
-              icon={<BookMarked className="w-4 h-4" />}
-              gradient="from-orange-600 to-orange-500"
-              loading={loadingTabs.references}
-              loaded={!!cache.references}
-            >
-              References
-            </TopTab>
-            <TopTab 
-              active={activeTab === 'related'} 
-              onClick={() => handleTabClick('related')}
-              icon={<ExternalLink className="w-4 h-4" />}
-              gradient="from-violet-600 to-violet-500"
-              loaded={!!cache.related}
-            >
-              Related Papers
-            </TopTab>
+
           </div>
         </Card>
 
@@ -533,7 +537,7 @@ export default function AnalysisPage() {
                   <div className="space-y-6">
                     <div className="flex items-center gap-3 mb-6">
                       <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-purple-600 to-purple-500 flex items-center justify-center animate-pulse">
-                        <BookMarked className="w-8 h-8 text-white" />
+                        <Star className="w-8 h-8 text-white" />
                       </div>
                       <div>
                         <div className="h-6 w-48 bg-slate-200 rounded animate-pulse mb-2"></div>
@@ -588,17 +592,7 @@ export default function AnalysisPage() {
                       </div>
                     ))}
                   </div>
-                ) : cache.references ? (
-                  <ReferencesTab references={cache.references} />
-                ) : (
-                  <div className="text-center py-16">
-                    <p className="text-slate-600">References not extracted yet</p>
-                  </div>
-                )
-              )}
-
-              {activeTab === 'related' && cache.related && (
-                <RelatedPapersTab title={currentAnalysis?.title} summary={currentAnalysis?.summary} />
+                ) : null
               )}
             </motion.div>
           </AnimatePresence>

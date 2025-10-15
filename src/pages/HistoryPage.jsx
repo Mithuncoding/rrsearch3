@@ -7,10 +7,23 @@ import { formatDate } from '../utils/helpers';
 
 export default function HistoryPage() {
   const navigate = useNavigate();
-  const { analysisHistory, setCurrentAnalysis } = useAppStore();
+  const { analysisHistory, setCurrentAnalysis, setUploadedFiles } = useAppStore();
 
   const handleViewAnalysis = (analysis) => {
+    // Restore the full analysis state
     setCurrentAnalysis(analysis);
+    
+    // Create a mock file object for the AnalysisPage to work with
+    const mockFile = {
+      name: analysis.fileName,
+      type: 'application/pdf',
+      parsedData: {
+        text: analysis.fullText || '', // Use stored text if available
+        images: []
+      }
+    };
+    
+    setUploadedFiles([mockFile]);
     navigate('/analysis');
   };
 
