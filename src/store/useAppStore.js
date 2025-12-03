@@ -65,9 +65,16 @@ export const useAppStore = create(
           newHistory = [analysis, ...state.analysisHistory];
         }
         
-        return { analysisHistory: newHistory.slice(0, 20) }; // Keep last 20
+        return { analysisHistory: newHistory.slice(0, 10) }; // Keep last 10
       }),
       
+      // Update an existing analysis (e.g., adding tags)
+      updateAnalysis: (paperHash, updates) => set((state) => ({
+        analysisHistory: state.analysisHistory.map(item => 
+          item.paperHash === paperHash ? { ...item, ...updates } : item
+        )
+      })),
+
       // Find existing analysis by paper hash
       findInHistory: (paperHash) => {
         const state = get();
@@ -86,7 +93,9 @@ export const useAppStore = create(
       addChatMessage: (message) => set((state) => ({ 
         chatMessages: [...state.chatMessages, message] 
       })),
-      clearChat: () => set({ chatMessages: [] }),
+      // Global Chat Modal State
+      isChatOpen: false,
+      setIsChatOpen: (isOpen) => set({ isChatOpen: isOpen }),
 
       // Loading states
       isAnalyzing: false,

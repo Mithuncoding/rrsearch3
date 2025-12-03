@@ -1,199 +1,265 @@
 // AI API Configuration
-const AI_API_KEY = 'AIzaSyBM8vn7Of-eUQ83qEeXuM84YPkW53NkQGU';
+const getApiKey = () => import.meta.env.VITE_GEMINI_API_KEY;
 
-// Get API key (simple, no rotation needed with single key)
-const getApiKey = () => AI_API_KEY;
+const AI_FAST_MODEL = "gemini-2.5-flash";
+const AI_ADVANCED_MODEL = "gemini-2.5-flash"; // User requested 2.5 Flash
+const AI_FALLBACK_MODEL = "gemini-2.5-flash";
 
-const AI_FAST_MODEL = 'gemini-2.5-flash';
-const AI_ADVANCED_MODEL = 'gemini-2.5-pro';
-const AI_FALLBACK_MODEL = 'gemini-2.5-flash'; // Fallback model
-
-const buildApiUrl = (model, apiKey) => 
+const buildApiUrl = (model, apiKey) =>
   `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
 const FAST_API_URL = buildApiUrl(AI_FAST_MODEL, getApiKey());
 const ADVANCED_API_URL = buildApiUrl(AI_ADVANCED_MODEL, getApiKey());
 
+if (!getApiKey()) {
+  console.error("Missing VITE_GEMINI_API_KEY in .env file");
+}
+
 // Schema definitions for structured output
 export const SCHEMAS = {
   coreAnalysis: {
-    type: 'object',
+    type: "object",
     properties: {
-      title: { type: 'string', description: 'The title of the paper' },
-      authors: { type: 'array', items: { type: 'string' }, description: 'List of authors' },
-      publicationYear: { type: 'string', description: 'Year of publication' },
-      takeaways: {
-        type: 'array',
-        items: { type: 'string' },
-        description: '3-5 key takeaways from the paper',
-        minItems: 3,
-        maxItems: 5
+      title: { type: "string", description: "The title of the paper" },
+      authors: {
+        type: "array",
+        items: { type: "string" },
+        description: "List of authors",
       },
-      summary: { type: 'string', description: 'Comprehensive summary of the paper' },
-      problemStatement: { type: 'string', description: 'The problem the paper addresses' },
-      methodology: { type: 'string', description: 'The methods used in the research' },
+      publicationYear: { type: "string", description: "Year of publication" },
+      takeaways: {
+        type: "array",
+        items: { type: "string" },
+        description: "3-5 key takeaways from the paper",
+        minItems: 3,
+        maxItems: 5,
+      },
+      summary: {
+        type: "string",
+        description: "Comprehensive summary of the paper",
+      },
+      problemStatement: {
+        type: "string",
+        description: "The problem the paper addresses",
+      },
+      methodology: {
+        type: "string",
+        description: "The methods used in the research",
+      },
       keyFindings: {
-        type: 'array',
+        type: "array",
         items: {
-          type: 'object',
+          type: "object",
           properties: {
-            finding: { type: 'string' },
-            evidence: { type: 'string', description: 'Direct quote from the paper' }
+            finding: { type: "string" },
+            evidence: {
+              type: "string",
+              description: "Direct quote from the paper",
+            },
           },
-          required: ['finding', 'evidence']
+          required: ["finding", "evidence"],
         },
-        description: 'Key findings with evidence'
-      }
+        description: "Key findings with evidence",
+      },
     },
-    required: ['title', 'takeaways', 'summary', 'problemStatement', 'methodology', 'keyFindings']
+    required: [
+      "title",
+      "takeaways",
+      "summary",
+      "problemStatement",
+      "methodology",
+      "keyFindings",
+    ],
   },
-  
+
   advancedAnalysis: {
-    type: 'object',
+    type: "object",
     properties: {
       strengths: {
-        type: 'array',
+        type: "array",
         items: {
-          type: 'object',
+          type: "object",
           properties: {
-            point: { type: 'string' },
-            evidence: { type: 'string' }
+            point: { type: "string" },
+            evidence: { type: "string" },
           },
-          required: ['point', 'evidence']
-        }
+          required: ["point", "evidence"],
+        },
       },
       weaknesses: {
-        type: 'array',
+        type: "array",
         items: {
-          type: 'object',
+          type: "object",
           properties: {
-            point: { type: 'string' },
-            evidence: { type: 'string' }
+            point: { type: "string" },
+            evidence: { type: "string" },
           },
-          required: ['point', 'evidence']
-        }
+          required: ["point", "evidence"],
+        },
       },
       hypotheses: {
-        type: 'array',
+        type: "array",
         items: {
-          type: 'object',
+          type: "object",
           properties: {
-            hypothesis: { type: 'string' },
-            experimentalDesign: { type: 'string' },
-            expectedOutcome: { type: 'string' }
+            hypothesis: { type: "string" },
+            experimentalDesign: { type: "string" },
+            expectedOutcome: { type: "string" },
           },
-          required: ['hypothesis', 'experimentalDesign']
-        }
-      }
+          required: ["hypothesis", "experimentalDesign"],
+        },
+      },
     },
-    required: ['strengths', 'weaknesses', 'hypotheses']
+    required: ["strengths", "weaknesses", "hypotheses"],
   },
-  
+
   quiz: {
-    type: 'object',
+    type: "object",
     properties: {
       questions: {
-        type: 'array',
+        type: "array",
         items: {
-          type: 'object',
+          type: "object",
           properties: {
-            question: { type: 'string' },
-            options: { type: 'array', items: { type: 'string' }, minItems: 4, maxItems: 4 },
-            correctAnswer: { type: 'number', minimum: 0, maximum: 3 },
-            explanation: { type: 'string' }
+            question: { type: "string" },
+            options: {
+              type: "array",
+              items: { type: "string" },
+              minItems: 4,
+              maxItems: 4,
+            },
+            correctAnswer: { type: "number", minimum: 0, maximum: 3 },
+            explanation: { type: "string" },
           },
-          required: ['question', 'options', 'correctAnswer', 'explanation']
+          required: ["question", "options", "correctAnswer", "explanation"],
         },
         minItems: 5,
-        maxItems: 5
-      }
+        maxItems: 5,
+      },
     },
-    required: ['questions']
+    required: ["questions"],
   },
-  
+
   references: {
-    type: 'object',
+    type: "object",
     properties: {
       references: {
-        type: 'array',
+        type: "array",
         items: {
-          type: 'object',
+          type: "object",
           properties: {
-            apa: { type: 'string' },
-            bibtex: { type: 'string' }
+            apa: { type: "string" },
+            bibtex: { type: "string" },
           },
-          required: ['apa', 'bibtex']
-        }
-      }
+          required: ["apa", "bibtex"],
+        },
+      },
     },
-    required: ['references']
+    required: ["references"],
   },
-  
+
   glossary: {
-    type: 'object',
+    type: "object",
     properties: {
       terms: {
-        type: 'array',
+        type: "array",
         items: {
-          type: 'object',
+          type: "object",
           properties: {
-            term: { type: 'string' },
-            definition: { type: 'string' }
+            term: { type: "string" },
+            definition: { type: "string" },
           },
-          required: ['term', 'definition']
-        }
-      }
+          required: ["term", "definition"],
+        },
+      },
     },
-    required: ['terms']
+    required: ["terms"],
   },
-  
+
   presentation: {
-    type: 'object',
+    type: "object",
     properties: {
       slides: {
-        type: 'array',
+        type: "array",
         items: {
-          type: 'object',
+          type: "object",
           properties: {
-            title: { type: 'string' },
-            content: { type: 'array', items: { type: 'string' } }
+            title: { type: "string" },
+            content: { type: "array", items: { type: "string" } },
           },
-          required: ['title', 'content']
+          required: ["title", "content"],
+        },
+      },
+    },
+    required: ["slides"],
+  },
+
+  multiPaperSynthesis: {
+    type: "object",
+    properties: {
+      overallSynthesis: { type: "string" },
+      commonThemes: {
+        type: "array",
+        items: {
+          type: "object",
+          properties: {
+            theme: { type: "string" },
+            papersDiscussing: { type: "array", items: { type: "string" } },
+          },
+          required: ["theme", "papersDiscussing"],
+        },
+      },
+      conflictingFindings: {
+        type: "array",
+        items: {
+          type: "object",
+          properties: {
+            topic: { type: "string" },
+            conflicts: { type: "string" },
+          },
+          required: ["topic", "conflicts"],
+        },
+      },
+      conceptEvolution: { type: "string" },
+    },
+    required: [
+      "overallSynthesis",
+      "commonThemes",
+      "conflictingFindings",
+      "conceptEvolution",
+    ],
+  },
+
+  knowledgeGraph: {
+    type: "object",
+    properties: {
+      nodes: {
+        type: "array",
+        items: {
+          type: "object",
+          properties: {
+            id: { type: "string" },
+            label: { type: "string" },
+            group: { type: "string", description: "Category of the concept (e.g., Method, Result, Theory)" },
+            val: { type: "number", description: "Importance value (1-10)" }
+          },
+          required: ["id", "label", "group", "val"]
+        }
+      },
+      links: {
+        type: "array",
+        items: {
+          type: "object",
+          properties: {
+            source: { type: "string", description: "ID of source node" },
+            target: { type: "string", description: "ID of target node" },
+            relationship: { type: "string", description: "Description of the relationship" }
+          },
+          required: ["source", "target", "relationship"]
         }
       }
     },
-    required: ['slides']
-  },
-  
-  multiPaperSynthesis: {
-    type: 'object',
-    properties: {
-      overallSynthesis: { type: 'string' },
-      commonThemes: {
-        type: 'array',
-        items: {
-          type: 'object',
-          properties: {
-            theme: { type: 'string' },
-            papersDiscussing: { type: 'array', items: { type: 'string' } }
-          },
-          required: ['theme', 'papersDiscussing']
-        }
-      },
-      conflictingFindings: {
-        type: 'array',
-        items: {
-          type: 'object',
-          properties: {
-            topic: { type: 'string' },
-            conflicts: { type: 'string' }
-          },
-          required: ['topic', 'conflicts']
-        }
-      },
-      conceptEvolution: { type: 'string' }
-    },
-    required: ['overallSynthesis', 'commonThemes', 'conflictingFindings', 'conceptEvolution']
+    required: ["nodes", "links"]
   }
 };
 
@@ -202,91 +268,116 @@ function truncateText(text, maxTokens = 30000) {
   // Rough estimate: 1 token ≈ 4 characters
   const maxChars = maxTokens * 4;
   if (text.length <= maxChars) return text;
-  
+
   // Truncate and add notice
-  return text.substring(0, maxChars) + '\n\n[Note: Document was truncated to fit token limits]';
+  return (
+    text.substring(0, maxChars) +
+    "\n\n[Note: Document was truncated to fit token limits]"
+  );
 }
 
 // Generate content with structured output and retry logic
-export async function generateStructuredContent(prompt, schema, useAdvancedModel = false, retries = 3) {
+export async function generateStructuredContent(
+  prompt,
+  schema,
+  useAdvancedModel = false,
+  retries = 3
+) {
   // Truncate prompt if too long
   const truncatedPrompt = truncateText(prompt);
-  
+
   for (let attempt = 0; attempt < retries; attempt++) {
     try {
       // Get fresh API key and URL for each attempt
       const model = useAdvancedModel ? AI_ADVANCED_MODEL : AI_FAST_MODEL;
       const apiKey = getApiKey();
       const apiUrl = buildApiUrl(model, apiKey);
-      
+
       const response = await fetch(apiUrl, {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          contents: [{
-            parts: [{
-              text: truncatedPrompt
-            }]
-          }],
+          contents: [
+            {
+              parts: [
+                {
+                  text: truncatedPrompt,
+                },
+              ],
+            },
+          ],
           generationConfig: {
             temperature: 0.7,
             topK: 40,
             topP: 0.95,
             maxOutputTokens: 4096, // Reduced from 8192
-            responseMimeType: 'application/json',
-            responseSchema: schema
-          }
-        })
+            responseMimeType: "application/json",
+            responseSchema: schema,
+          },
+        }),
       });
 
       if (!response.ok) {
         const errorData = await response.json();
         const errorMessage = errorData.error?.message || response.statusText;
         const errorCode = errorData.error?.code;
-        
+
         // Check if it's a retryable error (quota/overload)
-        if ((response.status === 503 || response.status === 429) && attempt < retries - 1) {
+        if (
+          (response.status === 503 || response.status === 429) &&
+          attempt < retries - 1
+        ) {
           // On quota error, try next API key immediately
           if (errorCode === 429) {
-            console.warn(`⚠️ Quota exceeded, rotating to next API key... (attempt ${attempt + 1}/${retries})`);
+            console.warn(
+              `⚠️ Quota exceeded, rotating to next API key... (attempt ${
+                attempt + 1
+              }/${retries})`
+            );
             continue; // Try immediately with next key
           }
-          
+
           // If Advanced model is overloaded, try Fast model as fallback
           if (useAdvancedModel && attempt === 0) {
-            console.warn('⚠️ Pro model overloaded, trying Flash model as fallback...');
+            console.warn(
+              "⚠️ Pro model overloaded, trying Flash model as fallback..."
+            );
             return generateStructuredContent(prompt, schema, false, 1);
           }
-          
+
           // For other errors, exponential backoff
           const waitTime = Math.pow(2, attempt) * 1000;
-          console.warn(`⚠️ API error, retrying in ${waitTime/1000}s... (attempt ${attempt + 1}/${retries})`);
-          await new Promise(resolve => setTimeout(resolve, waitTime));
+          console.warn(
+            `⚠️ API error, retrying in ${waitTime / 1000}s... (attempt ${
+              attempt + 1
+            }/${retries})`
+          );
+          await new Promise((resolve) => setTimeout(resolve, waitTime));
           continue;
         }
-        
+
         throw new Error(`AI API Error: ${errorMessage}`);
       }
 
       const data = await response.json();
-      
+
       // Check if response has candidates
       if (!data.candidates || data.candidates.length === 0) {
-        throw new Error('No candidates in API response');
+        throw new Error("No candidates in API response");
       }
-      
+
       const textContent = data.candidates[0]?.content?.parts[0]?.text;
-      
+
       if (!textContent) {
-        throw new Error('No content in response');
+        throw new Error("No content in response");
       }
 
       return JSON.parse(textContent);
     } catch (error) {
       if (attempt === retries - 1) {
-        console.error('Error calling AI API:', error);
+        console.error("Error calling AI API:", error);
         throw error;
       }
       // If not last attempt, continue to retry
@@ -300,35 +391,43 @@ export async function streamChatResponse(messages, onChunk, retries = 3) {
     try {
       // Use gemini-2.5-flash explicitly for fast responses
       const apiKey = getApiKey();
-      const chatModel = 'gemini-2.5-flash'; // Fast model for chat
+      const chatModel = "gemini-2.5-flash"; // Fast model for chat
       const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${chatModel}:streamGenerateContent?key=${apiKey}`;
-      
+
       const response = await fetch(apiUrl, {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          contents: messages.map(msg => ({
+          contents: messages.map((msg) => ({
             role: msg.role,
-            parts: [{
-              text: msg.content
-            }]
+            parts: [
+              {
+                text: msg.content,
+              },
+            ],
           })),
           generationConfig: {
-            temperature: 0.7,  // Slightly lower for more focused responses
+            temperature: 0.7, // Slightly lower for more focused responses
             topK: 40,
             topP: 0.95,
             maxOutputTokens: 1024, // Faster responses with reasonable length
-            candidateCount: 1
+            candidateCount: 1,
           },
           safetySettings: [
-            { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_NONE' },
-            { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_NONE' },
-            { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_NONE' },
-            { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_NONE' }
-          ]
-        })
+            { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
+            { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_NONE" },
+            {
+              category: "HARM_CATEGORY_SEXUALLY_EXPLICIT",
+              threshold: "BLOCK_NONE",
+            },
+            {
+              category: "HARM_CATEGORY_DANGEROUS_CONTENT",
+              threshold: "BLOCK_NONE",
+            },
+          ],
+        }),
       });
 
       if (!response.ok) {
@@ -339,36 +438,43 @@ export async function streamChatResponse(messages, onChunk, retries = 3) {
         } catch (e) {
           errorData = { error: { message: errorText } };
         }
-        
+
         const errorCode = errorData[0]?.error?.code || errorData.error?.code;
-        const errorMessage = errorData[0]?.error?.message || errorData.error?.message || response.statusText;
-        
-        console.error('💬 Chat API Error:', errorMessage);
-        
+        const errorMessage =
+          errorData[0]?.error?.message ||
+          errorData.error?.message ||
+          response.statusText;
+
+        console.error("💬 Chat API Error:", errorMessage);
+
         // Retry on quota errors
         if (errorCode === 429 && attempt < retries - 1) {
-          console.warn(`⚠️ Chat quota exceeded, retrying... (attempt ${attempt + 1}/${retries})`);
-          await new Promise(resolve => setTimeout(resolve, 1000)); // Brief delay
+          console.warn(
+            `⚠️ Chat quota exceeded, retrying... (attempt ${
+              attempt + 1
+            }/${retries})`
+          );
+          await new Promise((resolve) => setTimeout(resolve, 1000)); // Brief delay
           continue;
         }
-        
+
         throw new Error(`Chat Error: ${errorMessage}`);
       }
 
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
-      let buffer = '';
+      let buffer = "";
 
       while (true) {
         const { done, value } = await reader.read();
-        
+
         if (done) break;
-        
+
         buffer += decoder.decode(value, { stream: true });
-        
+
         // Gemini streaming returns JSON objects separated by newlines
-        const lines = buffer.split('\n');
-        buffer = lines.pop() || '';
+        const lines = buffer.split("\n");
+        buffer = lines.pop() || "";
 
         for (const line of lines) {
           if (line.trim()) {
@@ -384,13 +490,12 @@ export async function streamChatResponse(messages, onChunk, retries = 3) {
           }
         }
       }
-      
+
       // Successfully streamed, return
       return;
-      
     } catch (error) {
-      console.error('Error streaming chat:', error);
-      
+      console.error("Error streaming chat:", error);
+
       // If last attempt, throw error
       if (attempt === retries - 1) {
         throw error;
@@ -419,12 +524,12 @@ Return your analysis in JSON format with:
 - reason: string (explanation of your decision)`;
 
   const schema = {
-    type: 'object',
+    type: "object",
     properties: {
-      isValid: { type: 'boolean' },
-      reason: { type: 'string' }
+      isValid: { type: "boolean" },
+      reason: { type: "string" },
     },
-    required: ['isValid', 'reason']
+    required: ["isValid", "reason"],
   };
 
   return generateStructuredContent(prompt, schema, false);

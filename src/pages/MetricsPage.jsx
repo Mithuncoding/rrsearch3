@@ -7,12 +7,21 @@ import { compareWithBaseline, generateEvaluationReport } from '../services/evalu
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 import { toast } from '../components/ui/Toaster';
+import MetricsCharts from '../components/analysis/MetricsCharts';
 
 export default function MetricsPage() {
   const navigate = useNavigate();
   const { statistics, userMetrics, evaluations, getAllMetrics, resetMetrics } = useMetricsStore();
   const [selectedComparison, setSelectedComparison] = useState(null);
   const [report, setReport] = useState(null);
+  const [currentTime, setCurrentTime] = useState(Date.now());
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(Date.now());
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     if (evaluations.length > 0) {
@@ -130,6 +139,9 @@ export default function MetricsPage() {
 
       <div className="container mx-auto px-6 py-8">
         <div className="max-w-7xl mx-auto space-y-8">
+          {/* Visual Charts */}
+          <MetricsCharts history={evaluations} />
+
           {/* Statistics Cards */}
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
             <motion.div
@@ -381,7 +393,7 @@ export default function MetricsPage() {
               <div className="bg-slate-50 rounded-xl p-4 border-2 border-slate-200">
                 <p className="text-sm text-slate-600 font-medium mb-2">Session Duration</p>
                 <p className="text-2xl font-bold text-slate-800">
-                  {formatTime((Date.now() - userMetrics.sessionStart) / 1000)}
+                  {formatTime((currentTime - userMetrics.sessionStart) / 1000)}
                 </p>
                 <div className="text-xs text-slate-500 mt-2">
                   Started: {new Date(userMetrics.sessionStart).toLocaleTimeString()}

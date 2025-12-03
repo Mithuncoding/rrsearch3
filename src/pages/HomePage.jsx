@@ -12,7 +12,7 @@ import { toast } from '../components/ui/Toaster';
 
 export default function HomePage() {
   const navigate = useNavigate();
-  const { setUploadedFiles, addUploadedFile, uploadedFiles, clearUploadedFiles } = useAppStore();
+  const { setUploadedFiles, addUploadedFile, uploadedFiles, clearUploadedFiles, analysisHistory, setCurrentAnalysis } = useAppStore();
   const { incrementMetric } = useMetricsStore();
   const [isDragging, setIsDragging] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -158,7 +158,7 @@ export default function HomePage() {
               </div>
             </div>
             
-            <h2 className="text-5xl md:text-7xl font-display font-black mb-6 px-4 leading-tight">
+            <h2 className="text-4xl md:text-7xl font-display font-black mb-6 px-4 leading-tight">
               Research Analysis
               <br />
               <span className="bg-gradient-to-r from-prism-600 via-accent-purple to-accent-pink bg-clip-text text-transparent">
@@ -197,6 +197,50 @@ export default function HomePage() {
             </div>
           </div>
 
+
+
+          {/* Recent Analysis Section */}
+          {analysisHistory.length > 0 && (
+            <div className="mb-12 fade-in-up" style={{ animationDelay: '0.1s' }}>
+              <div className="flex items-center justify-between mb-6 px-4">
+                <h3 className="text-xl font-bold text-slate-800 flex items-center gap-2">
+                  <History className="w-5 h-5 text-prism-600" />
+                  Recent Analysis
+                </h3>
+                <Button variant="ghost" size="sm" onClick={() => navigate('/history')}>
+                  View All
+                </Button>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {analysisHistory.slice(0, 3).map((analysis, i) => (
+                  <Card 
+                    key={i}
+                    glass 
+                    className="p-4 hover:border-prism-400 cursor-pointer transition-all duration-300 group"
+                    onClick={() => {
+                      setCurrentAnalysis(analysis);
+                      navigate('/analysis');
+                    }}
+                  >
+                    <div className="flex items-start justify-between mb-2">
+                      <div className="p-2 bg-prism-50 rounded-lg group-hover:bg-prism-100 transition-colors">
+                        <FileText className="w-5 h-5 text-prism-600" />
+                      </div>
+                      <span className="text-xs text-slate-500 bg-white/50 px-2 py-1 rounded-full">
+                        {new Date(analysis.analyzedAt).toLocaleDateString()}
+                      </span>
+                    </div>
+                    <h4 className="font-bold text-slate-800 line-clamp-1 mb-1 group-hover:text-prism-700 transition-colors">
+                      {analysis.title || analysis.fileName}
+                    </h4>
+                    <p className="text-sm text-slate-600 line-clamp-2">
+                      {analysis.summary || 'No summary available'}
+                    </p>
+                  </Card>
+                ))}
+              </div>
+            </div>
+          )}
           {/* Upload area */}
           <Card glass className="p-6 md:p-12 mb-12 fade-in-up" style={{ animationDelay: '0.2s' }}>
             <div
@@ -249,11 +293,11 @@ export default function HomePage() {
           </Card>
 
           {/* How It Works */}
-          <div className="mb-20 fade-in-up" style={{ animationDelay: '0.4s' }}>
-            <h3 className="text-3xl md:text-4xl font-bold text-center mb-12">
+          <div className="mb-12 md:mb-20 fade-in-up" style={{ animationDelay: '0.4s' }}>
+            <h3 className="text-2xl md:text-4xl font-bold text-center mb-8 md:mb-12">
               <span className="gradient-text">How It Works</span>
             </h3>
-            <div className="grid md:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 md:gap-6">
               <StepCard 
                 number="1" 
                 title="Upload Paper" 
@@ -282,11 +326,11 @@ export default function HomePage() {
           </div>
 
           {/* Features grid */}
-          <div className="mb-20 fade-in-up" style={{ animationDelay: '0.6s' }}>
-            <h3 className="text-3xl md:text-4xl font-bold text-center mb-12">
+          <div className="mb-12 md:mb-20 fade-in-up" style={{ animationDelay: '0.6s' }}>
+            <h3 className="text-2xl md:text-4xl font-bold text-center mb-8 md:mb-12">
               <span className="gradient-text">Powerful Features</span>
             </h3>
-            <div className="grid md:grid-cols-3 gap-8">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-8">
               <FeatureCard
                 icon={<Sparkles className="w-8 h-8" />}
                 title="Key Takeaways"

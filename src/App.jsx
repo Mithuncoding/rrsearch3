@@ -5,6 +5,7 @@ import AnalysisPage from './pages/AnalysisPage';
 import MultiPaperPage from './pages/MultiPaperPage';
 import HistoryPage from './pages/HistoryPage';
 import MetricsPage from './pages/MetricsPage';
+import CommandPalette from './components/ui/CommandPalette';
 
 function App() {
   return (
@@ -16,6 +17,7 @@ function App() {
         <Route path="/history" element={<HistoryPage />} />
         <Route path="/metrics" element={<MetricsPage />} />
       </Routes>
+      <CommandPalette />
       <Toaster />
     </div>
   );

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Download, Share2, MessageSquare, Sparkles, BookOpen, Lightbulb, User, CheckCircle2, Star, Search } from 'lucide-react';
+import { ArrowLeft, Download, Share2, MessageSquare, Sparkles, BookOpen, Lightbulb, User, CheckCircle2, Star, Search, Network, BarChart3 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAppStore } from '../store/useAppStore';
 import { useMetricsStore } from '../store/useMetricsStore';
@@ -17,17 +17,19 @@ import OverviewTab from '../components/analysis/OverviewTab';
 import CritiqueTab from '../components/analysis/CritiqueTab';
 import IdeationTab from '../components/analysis/IdeationTab';
 import RelatedPapersTab from '../components/analysis/RelatedPapersTab';
+import KnowledgeGraphTab from '../components/analysis/KnowledgeGraphTab';
+import AnalyticsTab from '../components/analysis/AnalyticsTab';
 import ChatInterface from '../components/chat/ChatInterface';
 
 export default function AnalysisPage() {
   const navigate = useNavigate();
-  const { uploadedFiles, currentAnalysis, setCurrentAnalysis, persona, setPersona, addToHistory, findInHistory, generatePaperHash } = useAppStore();
+  const { uploadedFiles, currentAnalysis, setCurrentAnalysis, persona, setPersona, addToHistory, findInHistory, generatePaperHash, isChatOpen, setIsChatOpen } = useAppStore();
   const { addEvaluation, incrementMetric } = useMetricsStore();
   const [activeTab, setActiveTab] = useState('takeaways');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [loadingStage, setLoadingStage] = useState('');
   const [showExpertiseSelector, setShowExpertiseSelector] = useState(!persona);
-  const [showChat, setShowChat] = useState(false);
+  // const [showChat, setShowChat] = useState(false); // Moved to global store
   const [showExportMenu, setShowExportMenu] = useState(false);
   
   // Smart caching - cache all loaded data (persists during session)
@@ -415,19 +417,19 @@ export default function AnalysisPage() {
                 Back
               </Button>
               <div>
-                <h1 className="text-xl font-bold text-slate-800 line-clamp-1">{currentAnalysis.title}</h1>
-                <p className="text-sm text-slate-600">Analyzing as: <span className="font-semibold text-prism-600">{persona}</span></p>
+                <h1 className="text-lg md:text-xl font-bold text-slate-800 line-clamp-1 max-w-[150px] md:max-w-none">{currentAnalysis.title}</h1>
+                <p className="text-xs md:text-sm text-slate-600 hidden sm:block">Analyzing as: <span className="font-semibold text-prism-600">{persona}</span></p>
               </div>
             </div>
-            <div className="flex items-center gap-2">
-              <Button onClick={() => setShowExpertiseSelector(true)} variant="ghost" size="sm">
-                <User className="w-4 h-4 mr-2" />
-                Change Level
-              </Button>
-              <Button onClick={() => setShowChat(true)} variant="ghost" size="sm">
-                <MessageSquare className="w-4 h-4 mr-2" />
-                Chat
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button onClick={() => setShowExpertiseSelector(true)} variant="ghost" size="sm" className="px-2 md:px-3">
+                  <User className="w-4 h-4 md:mr-2" />
+                  <span className="hidden md:inline">Change Level</span>
+                </Button>
+                <Button onClick={() => setIsChatOpen(true)} variant="ghost" size="sm" className="px-2 md:px-3">
+                  <MessageSquare className="w-4 h-4 md:mr-2" />
+                  <span className="hidden md:inline">Chat</span>
+                </Button>
               <div className="relative">
                 <Button onClick={() => setShowExportMenu(!showExportMenu)} size="sm">
                   <Download className="w-4 h-4 mr-2" />
@@ -497,6 +499,24 @@ export default function AnalysisPage() {
               loaded={!!cache.related}
             >
               Related Papers
+            </TopTab>
+            <TopTab 
+              active={activeTab === 'graph'} 
+              onClick={() => handleTabClick('graph')}
+              icon={<Network className="w-4 h-4" />}
+              gradient="from-indigo-600 to-indigo-500"
+              loaded={!!cache.overview}
+            >
+              Knowledge Graph
+            </TopTab>
+            <TopTab 
+              active={activeTab === 'analytics'} 
+              onClick={() => handleTabClick('analytics')}
+              icon={<BarChart3 className="w-4 h-4" />}
+              gradient="from-orange-600 to-orange-500"
+              loaded={!!cache.overview}
+            >
+              Deep Analytics
             </TopTab>
 
           </div>
@@ -610,6 +630,17 @@ export default function AnalysisPage() {
                 />
               )}
 
+              {activeTab === 'graph' && (cache.overview || currentAnalysis) && (
+                <KnowledgeGraphTab analysis={cache.overview || currentAnalysis} />
+              )}
+
+              {activeTab === 'analytics' && (cache.overview || currentAnalysis) && (
+                <AnalyticsTab 
+                  analysis={cache.overview || currentAnalysis} 
+                  fullText={currentAnalysis.fullText || uploadedFiles[0]?.parsedData?.text} 
+                />
+              )}
+
               {activeTab === 'references' && (
                 loadingTabs.references ? (
                   <div className="space-y-4">
@@ -628,10 +659,10 @@ export default function AnalysisPage() {
       </div>
 
       {/* Chat Modal */}
-      {showChat && currentAnalysis && (
+      {isChatOpen && currentAnalysis && (
         <ChatInterface 
           paperContext={currentAnalysis} 
-          onClose={() => setShowChat(false)} 
+          onClose={() => setIsChatOpen(false)} 
         />
       )}
     </div>
