@@ -14,169 +14,183 @@ export function exportAsPDF(analysis) {
   let yPosition = margin;
 
   // Helper to add text with page breaks
-  const addText = (text, fontSize = 12, style = 'normal', color = [0, 0, 0]) => {
+  const addText = (text, fontSize = 12, style = 'normal', color = [0, 0, 0], indent = 0) => {
     doc.setFontSize(fontSize);
     doc.setFont('helvetica', style);
     doc.setTextColor(...color);
     
-    const lines = doc.splitTextToSize(text, maxWidth);
+    const lines = doc.splitTextToSize(text, maxWidth - indent);
     lines.forEach(line => {
       if (yPosition > pageHeight - margin) {
         doc.addPage();
         yPosition = margin;
       }
-      doc.text(line, margin, yPosition);
-      yPosition += fontSize * 0.5;
+      doc.text(line, margin + indent, yPosition);
+      yPosition += fontSize * 0.5; // Line height
     });
+    yPosition += 2; // Paragraph spacing
+  };
+
+  // Helper for section headers
+  const addSectionHeader = (title) => {
     yPosition += 5;
+    if (yPosition > pageHeight - margin) {
+      doc.addPage();
+      yPosition = margin;
+    }
+    
+    // Draw background for header
+    doc.setFillColor(240, 249, 255); // Light blue
+    doc.rect(margin - 2, yPosition - 6, maxWidth + 4, 10, 'F');
+    
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(14, 165, 233); // Prism Blue
+    doc.text(title.toUpperCase(), margin, yPosition);
+    yPosition += 10;
   };
 
   // Title
-  addText(analysis.title, 18, 'bold', [14, 165, 233]);
-  yPosition += 5;
+  doc.setFontSize(24);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(30, 41, 59); // Slate 800
+  const titleLines = doc.splitTextToSize(analysis.title, maxWidth);
+  doc.text(titleLines, margin, yPosition);
+  yPosition += titleLines.length * 12 + 5;
 
   // Metadata
+  doc.setDrawColor(203, 213, 225); // Slate 300
+  doc.line(margin, yPosition, pageWidth - margin, yPosition);
+  yPosition += 10;
+
   if (analysis.authors && analysis.authors.length > 0) {
-    addText(`Authors: ${analysis.authors.join(', ')}`, 10, 'italic');
+    addText(`Authors: ${analysis.authors.join(', ')}`, 10, 'italic', [100, 116, 139]);
   }
   if (analysis.publicationYear) {
-    addText(`Year: ${analysis.publicationYear}`, 10, 'italic');
+    addText(`Year: ${analysis.publicationYear}`, 10, 'italic', [100, 116, 139]);
   }
   yPosition += 10;
+
+  // Executive Summary
+  addSectionHeader('Executive Summary');
+  addText(analysis.summary, 11, 'normal', [51, 65, 85]);
+  yPosition += 5;
 
   // Key Takeaways
-  addText('KEY TAKEAWAYS', 14, 'bold', [139, 92, 246]);
+  addSectionHeader('Key Takeaways');
   analysis.takeaways.forEach((takeaway, i) => {
-    addText(`${i + 1}. ${takeaway}`, 11);
+    addText(`${i + 1}. ${takeaway}`, 11, 'normal', [51, 65, 85]);
   });
-  yPosition += 10;
-
-  // Summary
-  addText('SUMMARY', 14, 'bold', [139, 92, 246]);
-  addText(analysis.summary, 11);
-  yPosition += 10;
-
-  // Problem Statement
-  addText('PROBLEM STATEMENT', 14, 'bold', [139, 92, 246]);
-  addText(analysis.problemStatement, 11);
-  yPosition += 10;
+  yPosition += 5;
 
   // Methodology
-  addText('METHODOLOGY', 14, 'bold', [139, 92, 246]);
-  addText(analysis.methodology, 11);
-  yPosition += 10;
+  addSectionHeader('Methodology');
+  addText(analysis.methodology, 11, 'normal', [51, 65, 85]);
+  yPosition += 5;
 
   // Key Findings
-  addText('KEY FINDINGS', 14, 'bold', [139, 92, 246]);
+  addSectionHeader('Key Findings & Evidence');
   analysis.keyFindings.forEach((finding, i) => {
-    addText(`Finding ${i + 1}: ${finding.finding}`, 11, 'bold');
-    addText(`Evidence: "${finding.evidence}"`, 10, 'italic', [100, 100, 100]);
-    yPosition += 5;
+    addText(`Finding ${i + 1}: ${finding.finding}`, 11, 'bold', [30, 41, 59]);
+    addText(`"${finding.evidence}"`, 10, 'italic', [71, 85, 105], 5);
+    yPosition += 4;
   });
 
-  // Strengths (if available)
-  if (analysis.strengths) {
-    yPosition += 10;
-    addText('STRENGTHS', 14, 'bold', [139, 92, 246]);
-    analysis.strengths.forEach((strength, i) => {
-      addText(`${i + 1}. ${strength.point}`, 11);
-    });
-  }
-
-  // Weaknesses (if available)
-  if (analysis.weaknesses) {
-    yPosition += 10;
-    addText('WEAKNESSES', 14, 'bold', [139, 92, 246]);
-    analysis.weaknesses.forEach((weakness, i) => {
-      addText(`${i + 1}. ${weakness.point}`, 11);
-    });
-  }
-
-  // Hypotheses (if available)
-  if (analysis.hypotheses) {
-    yPosition += 10;
-    addText('AI-GENERATED HYPOTHESES', 14, 'bold', [139, 92, 246]);
-    analysis.hypotheses.forEach((hyp, i) => {
-      addText(`Hypothesis ${i + 1}: ${hyp.hypothesis}`, 11, 'bold');
-      addText(`Experimental Design: ${hyp.experimentalDesign}`, 10);
+  // Critique Section (if available)
+  if (analysis.strengths || analysis.weaknesses) {
+    addSectionHeader('Critical Analysis');
+    
+    if (analysis.strengths) {
+      addText('Strengths:', 12, 'bold', [22, 163, 74]); // Green
+      analysis.strengths.forEach((s, i) => addText(`• ${s.point}`, 11, 'normal', [51, 65, 85], 5));
       yPosition += 5;
-    });
+    }
+    
+    if (analysis.weaknesses) {
+      addText('Limitations:', 12, 'bold', [220, 38, 38]); // Red
+      analysis.weaknesses.forEach((w, i) => addText(`• ${w.point}`, 11, 'normal', [51, 65, 85], 5));
+    }
   }
 
   // Footer
-  doc.setFontSize(8);
-  doc.setTextColor(150, 150, 150);
-  doc.text('Generated by Prism - The Ultimate AI Research Assistant', pageWidth / 2, pageHeight - 10, { align: 'center' });
+  const pageCount = doc.internal.getNumberOfPages();
+  for (let i = 1; i <= pageCount; i++) {
+    doc.setPage(i);
+    doc.setFontSize(8);
+    doc.setTextColor(148, 163, 184);
+    doc.text(`Generated by Prism Research Assistant | Page ${i} of ${pageCount}`, pageWidth / 2, pageHeight - 10, { align: 'center' });
+  }
 
   // Save
-  doc.save(`${analysis.title.substring(0, 50)}_analysis.pdf`);
+  doc.save(`${analysis.title.substring(0, 30).replace(/[^a-z0-9]/gi, '_')}_Analysis.pdf`);
 }
 
 /**
  * Export analysis as Markdown
  */
 export function exportAsMarkdown(analysis) {
+  const date = new Date().toLocaleDateString();
   let markdown = `# ${analysis.title}\n\n`;
+  
+  markdown += `> **Generated by Prism Research Assistant** on ${date}\n\n`;
 
   if (analysis.authors && analysis.authors.length > 0) {
-    markdown += `**Authors:** ${analysis.authors.join(', ')}\n\n`;
+    markdown += `**👥 Authors:** ${analysis.authors.join(', ')}\n\n`;
   }
   if (analysis.publicationYear) {
-    markdown += `**Year:** ${analysis.publicationYear}\n\n`;
+    markdown += `**📅 Year:** ${analysis.publicationYear}\n\n`;
   }
 
   markdown += `---\n\n`;
 
-  markdown += `## Key Takeaways\n\n`;
+  markdown += `## 🚀 Executive Summary\n\n${analysis.summary}\n\n`;
+
+  markdown += `## 🔑 Key Takeaways\n\n`;
   analysis.takeaways.forEach((takeaway, i) => {
-    markdown += `${i + 1}. ${takeaway}\n`;
+    markdown += `- ${takeaway}\n`;
   });
   markdown += `\n`;
 
-  markdown += `## Summary\n\n${analysis.summary}\n\n`;
+  markdown += `## 🔬 Methodology\n\n${analysis.methodology}\n\n`;
 
-  markdown += `## Problem Statement\n\n${analysis.problemStatement}\n\n`;
-
-  markdown += `## Methodology\n\n${analysis.methodology}\n\n`;
-
-  markdown += `## Key Findings\n\n`;
+  markdown += `## 💡 Key Findings & Evidence\n\n`;
   analysis.keyFindings.forEach((finding, i) => {
-    markdown += `### Finding ${i + 1}\n\n`;
-    markdown += `${finding.finding}\n\n`;
-    markdown += `> **Evidence:** "${finding.evidence}"\n\n`;
+    markdown += `### ${i + 1}. ${finding.finding}\n`;
+    markdown += `> *"${finding.evidence}"*\n\n`;
   });
 
-  if (analysis.strengths) {
-    markdown += `## Strengths\n\n`;
-    analysis.strengths.forEach((strength, i) => {
-      markdown += `${i + 1}. ${strength.point}\n`;
-    });
-    markdown += `\n`;
-  }
+  if (analysis.strengths || analysis.weaknesses) {
+    markdown += `## ⚖️ Critical Analysis\n\n`;
+    
+    if (analysis.strengths) {
+      markdown += `### ✅ Strengths\n`;
+      analysis.strengths.forEach((s) => markdown += `- ${s.point}\n`);
+      markdown += `\n`;
+    }
 
-  if (analysis.weaknesses) {
-    markdown += `## Weaknesses\n\n`;
-    analysis.weaknesses.forEach((weakness, i) => {
-      markdown += `${i + 1}. ${weakness.point}\n`;
-    });
-    markdown += `\n`;
+    if (analysis.weaknesses) {
+      markdown += `### ⚠️ Limitations\n`;
+      analysis.weaknesses.forEach((w) => markdown += `- ${w.point}\n`);
+      markdown += `\n`;
+    }
   }
 
   if (analysis.hypotheses) {
-    markdown += `## AI-Generated Hypotheses\n\n`;
+    markdown += `## 🧪 Future Research Hypotheses\n\n`;
     analysis.hypotheses.forEach((hyp, i) => {
-      markdown += `### Hypothesis ${i + 1}\n\n`;
-      markdown += `**Statement:** ${hyp.hypothesis}\n\n`;
+      markdown += `### Hypothesis ${i + 1}\n`;
+      markdown += `**Hypothesis:** ${hyp.hypothesis}\n\n`;
       markdown += `**Experimental Design:** ${hyp.experimentalDesign}\n\n`;
       if (hyp.expectedOutcome) {
         markdown += `**Expected Outcome:** ${hyp.expectedOutcome}\n\n`;
       }
+      markdown += `---\n`;
     });
   }
 
-  markdown += `---\n\n*Generated by Prism - The Ultimate AI Research Assistant*\n`;
+  markdown += `\n---\n*Analysis generated by Prism AI*`;
 
-  downloadFile(markdown, `${analysis.title.substring(0, 50)}_analysis.md`, 'text/markdown');
+  downloadFile(markdown, `${analysis.title.substring(0, 30).replace(/[^a-z0-9]/gi, '_')}_Analysis.md`, 'text/markdown');
 }
 
 /**
